@@ -1,0 +1,103 @@
+/* profile_review.css - 复用样式 */
+body {
+    padding: 20px;
+    background: #f8f9fa;
+}
+
+/* 信息区块卡片 */
+.info-block {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    margin-bottom: 30px;
+}
+.info-block h5 {
+    margin-bottom: 16px;
+    border-bottom: 1px solid #dee2e6;
+    padding-bottom: 8px;
+}
+
+/* 基本信息网格 */
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 8px 20px;
+}
+.info-grid p {
+    margin-bottom: 6px;
+}
+
+/* 状态标签 */
+.badge-status {
+    font-size: 0.9rem;
+}
+
+/* 资料卡片容器（水平排列） */
+.card-materials {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    justify-content: flex-start;
+}
+
+/* 单个资料卡片 */
+.material-item {
+    flex: 0 0 180px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    padding: 12px;
+    text-align: center;
+    transition: transform 0.1s, box-shadow 0.2s;
+}
+.material-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+/* 缩略图容器（固定比例 4:3） */
+.material-thumb {
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    background: #f0f0f0;
+    border-radius: 4px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 8px;
+}
+.material-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.material-thumb .file-icon {
+    font-size: 3rem;
+    color: #6c757d;
+}
+
+/* 资料名称与链接 */
+.material-name {
+    font-weight: 500;
+    font-size: 0.9rem;
+    margin-bottom: 4px;
+}
+.material-link {
+    font-size: 0.8rem;
+    word-break: break-all;
+}
+.material-link a {
+    text-decoration: none;
+}
+.material-link a:hover {
+    text-decoration: underline;
+}
+
+/* 操作按钮区域 */
+.action-buttons {
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 1px solid #dee2e6;
+}

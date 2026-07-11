@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}{{ super() }} - 班级详情{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-6">
+    <h2>班级详情</h2>
+    <hr>
+    <table class="table">
+      <tr><th>班级名称</th><td>{{ cls.name }}</td></tr>
+      <tr><th>班级号</th><td>{{ cls.class_no }}</td></tr>
+      <tr><th>系部</th><td>{{ cls.department.name if cls.department else '-' }}</td></tr>
+      <tr><th>班主任</th><td>{{ cls.teacher.name if cls.teacher else '未分配' }}</td></tr>
+      <tr><th>状态</th>
+        <td>
+          {% if cls.is_graduated %}
+          <span class="badge bg-secondary">已毕业</span>
+          {% elif not cls.is_active %}
+          <span class="badge bg-warning">已停用</span>
+          {% else %}
+          <span class="badge bg-success">活跃</span>
+          {% endif %}
+        </td>
+      </tr>
+      <tr><th>学生人数</th><td>{{ profile_count }}</td></tr>
+    </table>
+    <a href="{{ url_for('admin.manage_classes', tab=request.args.get('tab', 'all')) }}" class="btn btn-secondary">返回</a>
+  </div>
+</div>
+{% endblock %}

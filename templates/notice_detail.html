@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ notice.title }} - {{ site_title }}</title>
+    <link href="{{ url_for('static', filename='lib/bootstrap/5.3.0/css/bootstrap.min.css') }}" rel="stylesheet">
+    <style>
+        :root { {{ theme_css_vars }} }
+        body { background: linear-gradient(135deg, var(--primary), var(--secondary)); min-height: 100vh; }
+        .notice-card { background: #fff; border: 2px solid var(--primary); border-radius: 12px; padding: 24px; }
+        .notice-content { color: var(--primary); line-height: 1.8; white-space: pre-wrap; }
+    </style>
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+</head>
+<body>
+{% with messages = get_flashed_messages(with_categories=true) %}{% if messages %}{% for category, msg in messages %}<div class="alert alert-{% if category == 'danger' %}danger{% else %}success{% endif %} alert-dismissible fade show" role="alert">{{ msg }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>{% endfor %}{% endif %}{% endwith %}
+
+<div class="container py-3" style="max-width: 800px;">
+    
+    <div class="notice-card">
+        <div class="mb-3">
+            {% if notice.importance == 'urgent' %}
+            <span class="badge bg-danger">紧急</span>
+            {% elif notice.importance == 'important' %}
+            <span class="badge bg-warning text-dark">重要</span>
+            {% endif %}
+            <small style="color:#999; margin-left:8px;">{{ notice.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+        </div>
+        <h4 style="color: var(--primary);">{{ notice.title }}</h4>
+        {% if notice.content %}
+        <hr style="border-color: var(--primary); opacity: .2;">
+        <div class="notice-content">{{ notice.content }}</div>
+        {% endif %}
+    </div>
+</div>
+
+    <script src="{{ url_for('static', filename='lib/bootstrap/5.3.0/js/bootstrap.bundle.min.js') }}"></script>
+    <div class="container py-3"><a href="{{ url_for("auth.index") }}" class="btn btn-sm btn-outline-light">← 返回首页</a></div>
+</body>
+</html>

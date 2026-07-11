@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}{{ super() }} - 个人资料{% endblock %}
+{% block content %}
+<h2>个人资料</h2>
+<hr>
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header"><strong>基本信息</strong></div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label">用户名</label>
+                    <input type="text" class="form-control" value="{{ user.username }}" readonly>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">邮箱</label>
+                    <input type="text" class="form-control" value="{{ user.email or '未设置' }}" readonly>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">角色</label>
+                    <input type="text" class="form-control" value="超级管理员" readonly>
+                </div>
+                <div class="alert alert-info">
+                    修改邮箱请编辑服务器上的 <code>.env</code> 配置文件，或通过系统邮件发送配置。
+                </div>
+                <a href="{{ url_for('super_admin.super_admin_dashboard') }}" class="btn btn-secondary">返回</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,418 @@
+{% extends "base.html" %}
+{% block title %}{{ super() }} - 批次审核{% endblock %}
+{% block content %}
+<h2>{{ batch.display_title }}</h2>
+<p class="text-muted">批次号：{{ batch.batch_name }} | 工种：{{ batch.skill.name }} | 等级：{{ batch.skill_level }}</p>
+<p class="text-muted">有效时间：{{ batch.start_time.strftime('%Y-%m-%d %H:%M') }} ~ {{ batch.end_time.strftime('%Y-%m-%d %H:%M') }}</p>
+
+{% if current_user.role == 'headteacher' %}
+<div class="mb-3 d-flex align-items-center">
+    <button type="button" class="btn btn-outline-info me-2" data-bs-toggle="modal" data-bs-target="#compareModal">
+        📊 Excel 身份证比对
+    </button>
+    <small class="text-muted">
+        请确认 Excel 格式：第一列姓名，第二列身份证号（18位），第一行为标题行。
+        <a href="#" data-bs-toggle="modal" data-bs-target="#compareModal" class="text-decoration-none">查看详细要求</a>
+    </small>
+</div>
+{% endif %}
+
+<!-- 状态选项卡 -->
+<div class="status-tabs mb-3">
+    <a href="{{ url_for('admin.batch_reviews', batch_name=batch.batch_name, status='pending') }}"
+       class="btn btn-sm {{ 'btn-purple' if current_status == 'pending' else 'btn-outline-purple' }}">
+       待审核{% set n = status_counts.get('pending', 0) %}{% if n %} <span class="badge bg-danger">{{ n }}</span>{% endif %}
+    </a>
+    <a href="{{ url_for('admin.batch_reviews', batch_name=batch.batch_name, status='approved') }}"
+       class="btn btn-sm {{ 'btn-success' if current_status == 'approved' else 'btn-outline-success' }}">
+       已通过{% set n = status_counts.get('approved', 0) %}{% if n %} <span class="badge bg-light text-dark">{{ n }}</span>{% endif %}
+    </a>
+    <a href="{{ url_for('admin.batch_reviews', batch_name=batch.batch_name, status='rejected') }}"
+       class="btn btn-sm {{ 'btn-danger' if current_status == 'rejected' else 'btn-outline-danger' }}">
+       已拒绝{% set n = status_counts.get('rejected', 0) %}{% if n %} <span class="badge bg-light text-dark">{{ n }}</span>{% endif %}
+    </a>
+    <a href="{{ url_for('admin.batch_reviews', batch_name=batch.batch_name, status='withdrawn') }}"
+       class="btn btn-sm {{ 'btn-secondary' if current_status == 'withdrawn' else 'btn-outline-secondary' }}">
+       已退出{% set n = status_counts.get('withdrawn', 0) %}{% if n %} <span class="badge bg-light text-dark">{{ n }}</span>{% endif %}
+    </a>
+    <a href="{{ url_for('admin.batch_reviews', batch_name=batch.batch_name, status='all') }}"
+       class="btn btn-sm {{ 'btn-primary' if current_status == 'all' else 'btn-outline-primary' }}">全部</a>
+</div>
+
+
+<!-- 记录统计 -->
+
+<!-- 学生列表 -->
+{% if students %}
+<form method="post" action="{{ url_for('admin.approve_students', batch=batch.batch_name) }}">
+    <table class="table">
+        <thead>
+            <tr>
+                <th style="width:50px;">序号</th>
+                {% if current_user.role in ['admin', 'super_admin'] and current_status == 'pending' %}
+                <th style="width:40px;">
+                    <input type="checkbox" id="selectAll" onclick="toggleAllCheckboxes(this)">
+                </th>
+                {% endif %}
+                {% if current_user.role in ['admin', 'super_admin'] and current_status == 'approved' %}
+                <th style="width:40px;">
+                    <input type="checkbox" id="exportSelectAll" onclick="toggleAllCheckboxes(this)" checked>
+                </th>
+                {% endif %}
+                <th>姓名</th>
+                {% if current_user.role in ['admin', 'super_admin'] %}<th>班级</th><th>系部</th>{% endif %}
+                {% if current_user.role == 'headteacher' %}<th>班级</th>{% endif %}
+                <th>身份证</th><th>工种</th><th>等级</th><th>状态</th><th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in students %}
+            <tr>
+                <td>{{ (page - 1) * 50 + loop.index }}</td>
+                {% if current_user.role in ['admin', 'super_admin'] and current_status == 'pending' %}
+                <td><input type="checkbox" name="student_ids" value="{{ s.id }}" class="student-checkbox"></td>
+                {% endif %}
+                {% if current_user.role in ['admin', 'super_admin'] and current_status == 'approved' %}
+                <td><input type="checkbox" name="student_ids" value="{{ s.id }}" class="student-checkbox" checked></td>
+                {% endif %}
+                <td>{{ s.name }}</td>
+                {% if current_user.role in ['admin', 'super_admin'] %}
+                <td>
+                {% set profile = s.user.profile %}
+                {% if profile and profile.class_group %}
+                    {% set cls = profile.class_group %}
+                    {% if admin_dept_ids is none %}
+                    <a href="{{ url_for('teacher.view_class', class_id=cls.id) }}" target="_blank">{{ cls.name }}</a>
+                    {% elif cls.department_id in admin_dept_ids %}
+                    <a href="{{ url_for('teacher.view_class', class_id=cls.id) }}" target="_blank">{{ cls.name }}</a>
+                    {% else %}
+                    {{ cls.name }}
+                    {% endif %}
+                {% else %}
+                    <span class="text-muted">未分配</span>
+                {% endif %}
+                </td>
+                <td>
+                {% set profile = s.user.profile %}
+                {% if profile and profile.class_group and profile.class_group.department %}
+                    {{ profile.class_group.department.name }}
+                {% else %}
+                    <span class="text-muted">-</span>
+                {% endif %}
+                </td>
+                {% endif %}
+                {% if current_user.role == 'headteacher' %}
+                <td>
+                {% set profile = s.user.profile %}
+                {% if profile and profile.class_group %}
+                    {{ profile.class_group.name }}
+                {% else %}
+                    <span class="text-muted">未分配</span>
+                {% endif %}
+                </td>
+                {% endif %}
+                <td>{% if current_status == 'pending' %}{{ s.id_number }}{% else %}{{ s.id_number[:14] }}****{% endif %}</td>
+                <td>{{ s.batch.skill.name }}</td>
+                <td>{{ s.batch.skill_level }}</td>
+                <td>
+                    <span class="badge bg-{{ 'success' if s.status=='approved' else 'warning' }}">
+                        {{ s.status }}
+                    </span>
+                </td>
+                <td>
+                    {% if s.status == 'pending' and current_user.role in ['admin', 'super_admin'] %}
+                    <a href="{{ url_for('admin.review_student', student_id=s.id, batch=batch.batch_name) }}" 
+                       target="_blank" class="btn btn-sm btn-info">审核</a>
+                    {% else %}
+                    <a href="{{ url_for('admin.review_student', student_id=s.id, batch=batch.batch_name) }}" 
+                       target="_blank" class="btn btn-sm btn-outline-secondary">查看</a>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% if current_user.role in ['admin', 'super_admin'] and current_status == 'pending' %}
+    <button type="submit" name="action" value="approve" class="btn btn-success">批量通过</button>
+    <button type="submit" name="action" value="reject" class="btn btn-danger">批量拒绝</button>
+    {% endif %}
+</form>
+{% else %}
+<div class="alert alert-info">暂无数据</div>
+{% endif %}
+
+<!-- 分页导航 -->
+{% if total > 0 %}
+  <p class="text-muted">共 {{ total }} 条记录，当前第 {{ page }}/{{ total_pages }} 页</p>
+  {% if total_pages > 1 %}
+    <nav>
+      <ul class="pagination">
+        <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+          <a class="page-link" href="{{ url_for('admin.batch_reviews', batch_name=batch.batch_name, status=current_status, page=page-1, class_id=class_id if class_id else None) }}">« 上一页</a>
+        </li>
+        {% for p in range(1, total_pages + 1) %}
+        <li class="page-item {% if p == page %}active{% endif %}">
+          <a class="page-link" href="{{ url_for('admin.batch_reviews', batch_name=batch.batch_name, status=current_status, page=p, class_id=class_id if class_id else None) }}">{{ p }}</a>
+        </li>
+        {% endfor %}
+        <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+          <a class="page-link" href="{{ url_for('admin.batch_reviews', batch_name=batch.batch_name, status=current_status, page=page+1, class_id=class_id if class_id else None) }}">下一页 »</a>
+        </li>
+      </ul>
+    </nav>
+  {% endif %}
+  {% else %}
+  <p class="text-muted">暂无数据</p>
+{% endif %}
+
+{% if class_id %}
+<a href="{{ url_for('teacher.teacher_class_batches', class_id=class_id) }}" class="btn btn-secondary mt-3">← 返回班级批次列表</a>
+{% else %}
+<div class="d-flex align-items-center mt-3 gap-3">
+    <a href="{{ url_for('admin.manage_batches') }}" class="btn btn-secondary">← 返回批次管理</a>
+    {% if current_user.role in ['admin', 'super_admin'] and current_status == 'approved' and students %}
+    <button type="button" class="btn btn-purple" onclick="exportSelected()">
+        📦 导出选中资料 (<span id="exportCount">{{ students|length }}</span>)
+    </button>
+    {% endif %}
+</div>
+{% endif %}
+
+{% if current_user.role in ['admin', 'super_admin'] and current_status == 'approved' and students %}
+<form id="exportForm" method="post" action="{{ url_for('admin.export_batch', batch=batch.batch_name) }}" style="display:none;">
+    {% for s in students %}
+    <input type="hidden" name="student_ids" value="{{ s.id }}" data-export-id="{{ s.id }}">
+    {% endfor %}
+</form>
+{% endif %}
+
+{% if current_user.role == 'headteacher' %}
+<!-- Excel 比对模态框 -->
+<div class="modal fade" id="compareModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">上传 Excel 比对身份证</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-info">
+          <strong>要求：</strong><br>
+          • 文件格式：.xlsx 或 .xls，大小 ≤ 512KB<br>
+          • 第一列：姓名，第二列：身份证号（18位）<br>
+          • 第一行为标题行（会自动跳过）
+        </div>
+        <div class="mb-3">
+          <label for="excelFile" class="form-label">选择 Excel 文件</label>
+          <input type="file" id="excelFile" class="form-control" accept=".xlsx,.xls">
+        </div>
+        <div id="compareError" class="text-danger small mb-3" style="display:none;"></div>
+        <div class="mt-2">
+            <a href="{{ url_for('static', filename='sample_compare.xlsx') }}" download class="btn btn-sm btn-outline-secondary">
+                ⬇ 下载标准样例
+            </a>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+        <button type="button" class="btn btn-primary" id="compareSubmitBtn" onclick="submitCompare()">开始比对</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleAllCheckboxes(source) {
+    var checkboxes = document.querySelectorAll('.student-checkbox');
+    for (var i = 0; i < checkboxes.length; i++) {
+        checkboxes[i].checked = source.checked;
+    }
+    updateExportCount();
+}
+
+function updateExportCount() {
+    var countEl = document.getElementById('exportCount');
+    if (!countEl) return;
+    var checked = document.querySelectorAll('.student-checkbox:checked');
+    countEl.textContent = checked.length;
+}
+
+// 监听勾选框变化，更新计数和隐藏表单
+document.addEventListener('DOMContentLoaded', function() {
+    var checkboxes = document.querySelectorAll('.student-checkbox');
+    for (var i = 0; i < checkboxes.length; i++) {
+        checkboxes[i].addEventListener('change', updateExportCount);
+    }
+});
+
+function exportSelected() {
+    var form = document.getElementById('exportForm');
+    if (!form) return;
+    // 根据勾选状态同步 hidden input
+    var checkboxes = document.querySelectorAll('.student-checkbox');
+    var hiddenInputs = form.querySelectorAll('input[data-export-id]');
+    var checkedIds = new Set();
+    for (var i = 0; i < checkboxes.length; i++) {
+        if (checkboxes[i].checked) {
+            checkedIds.add(checkboxes[i].value);
+        }
+    }
+    // 移除取消勾选的 hidden input
+    for (var i = 0; i < hiddenInputs.length; i++) {
+        if (!checkedIds.has(hiddenInputs[i].value)) {
+            hiddenInputs[i].name = '_remove';
+        } else {
+            hiddenInputs[i].name = 'student_ids';
+        }
+    }
+    var count = checkedIds.size;
+    if (count === 0) {
+        alert('请至少选择一个学生');
+        return;
+    }
+    if (!confirm('确定导出 ' + count + ' 名学生的资料？')) return;
+    form.submit();
+}
+</script>
+{% if current_user.role == 'headteacher' %}
+<script src="{{ url_for('static', filename='lib/xlsx/0.20.1/xlsx.full.min.js') }}"></script>
+<script>
+function submitCompare() {
+  var fileInput = document.getElementById('excelFile');
+  var file = fileInput.files[0];
+  var errorDiv = document.getElementById('compareError');
+  errorDiv.style.display = 'none';
+  errorDiv.innerHTML = '';
+
+  if (!file) {
+    errorDiv.innerHTML = '请选择文件';
+    errorDiv.style.display = 'block';
+    return;
+  }
+
+  if (file.size > 512 * 1024) {
+    errorDiv.innerHTML = '文件大小超过512KB，请重新选择文件';
+    errorDiv.style.display = 'block';
+    fileInput.value = '';
+    return;
+  }
+
+  var ext = file.name.split('.').pop().toLowerCase();
+  if (ext !== 'xlsx' && ext !== 'xls') {
+    errorDiv.innerHTML = '仅支持 .xlsx 或 .xls 格式的文件，请重新选择文件';
+    errorDiv.style.display = 'block';
+    fileInput.value = '';
+    return;
+  }
+
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var data = new Uint8Array(e.target.result);
+    var workbook;
+    try {
+      workbook = XLSX.read(data, {type: 'array'});
+    } catch(err) {
+      errorDiv.innerHTML = '无法解析 Excel 文件，请确认格式正确';
+      errorDiv.style.display = 'block';
+      fileInput.value = '';
+      return;
+    }
+
+    var sheet = workbook.Sheets[workbook.SheetNames[0]];
+    var rows = XLSX.utils.sheet_to_json(sheet, {header: 1});
+
+    if (rows.length < 2) {
+      errorDiv.innerHTML = 'Excel 文件至少需要包含标题行和一条数据';
+      errorDiv.style.display = 'block';
+      fileInput.value = '';
+      return;
+    }
+
+    var idSet = new Set();
+    var frontErrors = [];
+    for (var i = 1; i < rows.length; i++) {
+      var row = rows[i];
+      if (!row || (!row[0] && !row[1])) continue;
+      var name = (row[0] || '').toString().trim();
+      var idNum = (row[1] || '').toString().trim();
+      var rowNum = i + 1;
+
+      if (!name) {
+        frontErrors.push('第 ' + rowNum + ' 行姓名为空');
+        continue;
+      }
+      if (!idNum) {
+        frontErrors.push('第 ' + rowNum + ' 行身份证号为空');
+        continue;
+      }
+      if (!/^\d{17}[\dXx]$/.test(idNum)) {
+        frontErrors.push('第 ' + rowNum + ' 行身份证号格式不正确');
+        continue;
+      }
+      if (idSet.has(idNum)) {
+        frontErrors.push('第 ' + rowNum + ' 行身份证号与文件内其他行重复');
+        continue;
+      }
+      idSet.add(idNum);
+    }
+
+    if (frontErrors.length > 0) {
+      errorDiv.innerHTML = frontErrors.join('<br>');
+      errorDiv.style.display = 'block';
+      fileInput.value = '';
+      return;
+    }
+
+    var formData = new FormData();
+    formData.append('file', file);
+
+    var btn = document.getElementById('compareSubmitBtn');
+    btn.disabled = true;
+    btn.innerHTML = '比对中...';
+
+    fetch('{{ url_for("teacher_batch_compare_ids", batch_name=batch.batch_name) }}', {
+      method: 'POST',
+      body: formData
+    }).then(res => {
+      if (res.redirected) {
+        window.location.href = res.url;
+      } else {
+        return res.text().then(html => {
+          document.open();
+          document.write(html);
+          document.close();
+        });
+      }
+    }).catch(err => {
+      errorDiv.innerHTML = '请求失败，请重试';
+      errorDiv.style.display = 'block';
+      fileInput.value = '';
+      btn.disabled = false;
+      btn.innerHTML = '开始比对';
+    });
+  };
+
+  reader.readAsArrayBuffer(file);
+}
+// 每次打开比对模态框时，清除已选择的文件
+// 页面加载完成后清空文件输入框
+document.addEventListener('DOMContentLoaded', function() {
+  var excelFile = document.getElementById('excelFile');
+  if (excelFile) {
+    excelFile.value = '';
+  }
+});
+var compareModal = document.getElementById('compareModal');
+if (compareModal) {
+  compareModal.addEventListener('show.bs.modal', function() {
+    document.getElementById('excelFile').value = '';
+    document.getElementById('compareError').style.display = 'none';
+    document.getElementById('compareError').innerHTML = '';
+  });
+}
+</script>
+{% endif %}
+{% endblock %}

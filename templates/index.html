@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>技能认定资料收集系统</title>
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <link href="{{ url_for('static', filename='lib/bootstrap/5.3.0/css/bootstrap.min.css') }}" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='lib/font-awesome/6.0.0-beta3/css/all.min.css') }}">
+    <style>
+        :root { {{ theme_css_vars }} }
+        body { background: linear-gradient(135deg, var(--primary), var(--secondary)); min-height: 100vh; }
+        .brand { font-size: 1.15rem; font-weight: 700; }
+        .brand small { font-weight: 400; opacity: .75; font-size: .75rem; }
+        .card-item { background: rgba(255,255,255,.12); border-radius: 10px; padding: 14px 16px; transition: background .2s; min-height: 300px; height: 100%; display: flex; flex-direction: column; word-wrap: break-word; }
+        .card-item:hover { background: rgba(255,255,255,.2); }
+        .card-item .card-title { font-weight: 600; }
+        .card-item .card-meta { font-size: .8rem; opacity: .75; }
+        .section-title { font-size: 1rem; font-weight: 600; margin-bottom: 12px; }
+        .section-title a { font-size: .75rem; font-weight: 400; }
+        .no-data { background: rgba(255,255,255,.08); border-radius: 10px; padding: 24px; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .border-white-25 { border-color: rgba(255,255,255,.25) !important; }
+    </style>
+</head>
+<body>
+
+<div class="container text-white py-3">
+
+    <!-- Flash 消息 -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, msg in messages %}
+            <div class="alert alert-{{ 'danger' if category == 'danger' else 'success' }} alert-dismissible fade show" role="alert">
+                {{ msg }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="关闭"></button>
+            </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <!-- 顶栏 -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="brand">
+            {% if site_logo %}
+            <img src="{{ url_for('uploaded_file', filename=site_logo) }}" height="32" class="me-2" alt="">
+            {% else %}
+            📋
+            {% endif %}
+            {{ site_title }}
+            <small class="d-block">{{ site_subtitle }}</small>
+        </div>
+        <div class="flex-shrink-0">
+            <a href="{{ url_for('auth.login') }}" class="btn btn-sm btn-outline-light me-2">登录</a>
+            <a href="{{ url_for('auth.register') }}" class="btn btn-sm btn-outline-light">学生注册</a>
+        </div>
+    </div>
+
+    <!-- 双栏 -->
+    <div class="row g-3 mb-4">
+        <!-- 左：通知 5条 -->
+        <div class="col-md-6">
+            <div class="section-title">
+                <i class="fas fa-bullhorn"></i> 通知公告
+                <a href="{{ url_for('auth.notices_page') }}" class="text-white-50 text-decoration-none float-end">更多 →</a>
+            </div>
+            <div class="card-item">
+                {% if notices %}
+                    {% for n in notices %}
+                    <div class="mb-2 pb-2 {% if not loop.last %}border-bottom border-white-25{% endif %}">
+                        <div class="card-title">
+                            {% if n.importance == 'urgent' %}<span class="badge bg-danger">紧急</span>
+                            {% elif n.importance == 'important' %}<span class="badge bg-warning text-dark">重要</span>
+                            {% else %}<span class="badge bg-info text-dark">普通</span>
+                            {% endif %}
+                            <a href="{{ url_for('auth.notice_detail', notice_id=n.id) }}" class="text-white text-decoration-none">{{ n.title }}</a>
+                            <a href="{{ url_for('auth.notice_detail', notice_id=n.id) }}" class="text-white-50" style="font-size:.75rem;">查看详情 →</a>
+                        </div>
+                        <div class="card-meta">{{ n.created_at.strftime('%Y-%m-%d') }}</div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-white-50">暂无通知</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- 右：最新批次 5条 -->
+        <div class="col-md-6">
+            <div class="section-title">
+                <i class="fas fa-clock"></i> 最新批次
+                <a href="{{ url_for('auth.batches_all') }}" class="text-white-50 text-decoration-none float-end">更多 →</a>
+            </div>
+            <div class="card-item">
+                {% if latest_batches %}
+                    {% for b in latest_batches %}
+                    <div class="mb-2 pb-2 {% if not loop.last %}border-bottom border-white-25{% endif %}">
+                        <div class="card-title">
+                            <a href="{{ url_for('auth.batches_all') }}" class="text-white text-decoration-none">{{ b.batch_name }}</a>
+                            {% if b.is_archived %}<span class="badge bg-secondary ms-1">已归档</span>
+                            {% elif b.is_locked %}<span class="badge bg-dark ms-1">已锁定</span>
+                            {% elif b.end_time < now %}<span class="badge bg-light text-dark ms-1">已截止</span>
+                            {% elif b.start_time <= now %}<span class="badge bg-warning text-dark ms-1">报名中</span>
+                            {% endif %}
+                        </div>
+                        <div class="card-meta">{{ b.display_title }}</div>
+                        <div class="card-meta">{{ b.start_time.strftime('%m/%d') }} ~ {{ b.end_time.strftime('%m/%d') }}</div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-white-50">暂无批次</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+</div>
+<hr>
+<div class="text-center text-white-50">
+        <small>技能认定资料收集系统 &copy; 2026</small>
+    </div>
+</body>
+<script src="{{ url_for('static', filename='lib/bootstrap/5.3.0/js/bootstrap.bundle.min.js') }}"></script>
+</html>

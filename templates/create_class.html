@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}创建班级{% endblock %}
+{% block content %}
+
+<div class="row justify-content-center">
+    
+    <div class="col-md-4">
+        <h2>创建新班级</h2>
+        <form method="post">
+            
+            <div class="mb-3">
+                <label class="form-label">班级名称</label>
+                <input type="text" name="class_name" class="form-control" required>
+            </div>
+            teacher_classes.html
+            <div class="mb-3">
+                <label class="form-label">班级号</label>
+                <input type="text" name="class_no" class="form-control" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">班主任（可选）</label>
+                <select name="teacher_id" class="form-select">
+                    <option value="">暂不分配</option>
+                    {% for t in teachers %}
+                    <option value="{{ t.id }}">{{ t.name }} ({{ t.id_number }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary">创建班级</button>
+        </form>
+    </div>
+</div>
+
+{% endblock %}

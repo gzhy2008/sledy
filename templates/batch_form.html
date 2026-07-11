@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}{{ super() }} - 创建批次{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-7">   <!-- 原 col-lg-4 改为 col-lg-7，约为原宽度的87.5%，接近80% -->
+        <h2>创建认定批次</h2>
+        <hr>
+        <!-- 创建说明 -->
+        <div class="alert alert-light border mb-4">
+            <h5>📝 创建说明</h5>
+            <ul class="mb-0 small">
+                <li><strong>批次号</strong>：系统自动生成（格式：年月日+工种ID+期数+5位随机码），无需手动输入。</li>
+                <li><strong>工种期数</strong>：首次创建该工种时从第1期开始，之后每次自动递增。</li>
+                <li><strong>批次关键词</strong>：选填，仅用于内部记忆和搜索，学生端不可见。</li>
+                <li><strong>面向班级</strong>：创建后可在批次列表点击“编辑班级”进行添加，创建时可不选。</li>
+                <li><strong>创建并继续</strong>：点击后停留在本页，可连续创建多个批次。</li>
+            </ul>
+        </div>
+
+        <form method="post" action="{{ url_for('admin.create_batch') }}">
+            <!-- 第一行：批次关键词（占满整行） -->
+            <div class="row mb-3">
+                <div class="col-12">
+                    <label for="batch_keyword" class="form-label">批次关键词 <span class="text-muted">(选填，≤10字)</span></label>
+                    <input type="text" name="batch_keyword" id="batch_keyword" class="form-control" 
+                           placeholder="如 春季电工" maxlength="10" value="{{ form.get('batch_keyword', '') if form else '' }}">
+                    <small class="text-muted">用于内部记忆和搜索，学生端不可见</small>
+                </div>
+            </div>
+
+            <!-- 第二行：工种 + 等级（各占一半） -->
+            <div class="row mb-3">
+                <div class="col-6">
+                    <label for="skill_id" class="form-label">拟认定工种</label>
+                    <select name="skill_id" id="skill_id" class="form-select" required>
+                        <option value="">请选择工种</option>
+                        {% for s in skills %}
+                        <option value="{{ s.id }}" {% if form and form.get('skill_id') == s.id|string %}selected{% endif %}>{{ s.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-6">
+                    <label for="skill_level" class="form-label">等级</label>
+                    <select name="skill_level" id="skill_level" class="form-select" required>
+                        <option value="">请选择</option>
+                        <option value="五级(初级)" {% if form and form.get('skill_level') == '五级(初级)' %}selected{% endif %}>五级(初级)</option>
+                        <option value="四级(中级)" {% if form and form.get('skill_level') == '四级(中级)' %}selected{% endif %}>四级(中级)</option>
+                        <option value="三级(高级)" {% if form and form.get('skill_level') == '三级(高级)' %}selected{% endif %}>三级(高级)</option>
+                        <option value="二级(技师)" {% if form and form.get('skill_level') == '二级(技师)' %}selected{% endif %}>二级(技师)</option>
+                        <option value="一级(高级技师)" {% if form and form.get('skill_level') == '一级(高级技师)' %}selected{% endif %}>一级(高级技师)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- 第三行：开始时间 + 结束时间（各占一半） -->
+            <div class="row mb-4">
+                <div class="col-6">
+                    <label for="start_time" class="form-label">报名开始时间</label>
+                    <input type="datetime-local" name="start_time" id="start_time" class="form-control" required>
+                </div>
+                <div class="col-6">
+                    <label for="end_time" class="form-label">报名截止时间</label>
+                    <input type="datetime-local" name="end_time" id="end_time" class="form-control" required>
+                </div>
+            </div><!-- 第四行：认定工作开始时间 + 认定工作结束时间（各占一半） -->
+                <div class="row mb-4">
+                <div class="col-6">
+                    <label for="work_start_time" class="form-label">认定工作开始时间</label>
+                    <input type="datetime-local" name="work_start_time" id="work_start_time" class="form-control" required>
+                </div>
+                <div class="col-6">
+                    <label for="work_end_time" class="form-label">认定工作结束时间</label>
+                    <input type="datetime-local" name="work_end_time" id="work_end_time" class="form-control" required>
+                </div>
+            </div>
+
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                <a href="{{ url_for('admin.manage_batches') }}" class="btn btn-secondary me-md-2">取消</a>
+                <button type="submit" name="action" value="create" class="btn btn-primary">创建</button>
+                <button type="submit" name="action" value="continue" class="btn btn-outline-primary ms-2">创建并继续</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

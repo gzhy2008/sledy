@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}{{ super() }} - 调整班级{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <h2>调整班级</h2>
+    <hr>
+    <div class="card mb-4">
+      <div class="card-header"><strong>当前班主任</strong></div>
+      <div class="card-body">
+        <p><strong>姓名：</strong>{{ current_ht.name }}</p>
+        <p><strong>当前管理的班级：</strong>
+          {% if current_ht.classes %}
+            {% for c in current_ht.classes %}
+              <span class="badge bg-info me-1">{{ c.name }}（{{ c.class_no }}）</span>
+            {% endfor %}
+          {% else %}
+            <span class="text-muted">无</span>
+          {% endif %}
+        </p>
+      </div>
+    </div>
+    <form method="post">
+      <div class="row">
+        <div class="col-md-5 d-flex">
+          <div class="card mb-3 w-100">
+            <div class="card-header"><strong>待转移班级（可多选）</strong></div>
+            <div class="card-body d-flex flex-column">
+              {% if current_ht.classes %}
+                <select name="class_ids" multiple class="form-select" size="8" required>
+                  {% for c in current_ht.classes %}
+                    <option value="{{ c.id }}">{{ c.name }}（{{ c.class_no }}）</option>
+                  {% endfor %}
+                </select>
+                <small class="text-muted">按住 Ctrl 多选</small>
+              {% else %}
+                <p class="text-muted">该班主任暂无班级，无需调整</p>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        <div class="col-md-2 d-flex align-items-center justify-content-center">
+          <h3>→</h3>
+        </div>
+        <div class="col-md-5 d-flex">
+          <div class="card mb-3 w-100">
+            <div class="card-header"><strong>选择目标班主任</strong></div>
+            <div class="card-body d-flex flex-column">
+              <div class="mb-3">
+                <label class="form-label">按系部筛选</label>
+                <select name="department_id" id="deptSelect" class="form-select" onchange="filterTeachers()">
+                  <option value="">所有系部</option>
+                  {% for d in departments %}
+                    <option value="{{ d.id }}">{{ d.name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <select name="target_ht_id" id="teacherSelect" class="form-select" size="8" required>
+                {% for ht in other_headteachers %}
+                  <option value="{{ ht.id }}" data-dept-ids="[{% for d in ht.departments %}{{ d.id }}{% if not loop.last %},{% endif %}{% endfor %}]">
+                    {{ ht.name }}（{% for c in ht.classes %}{{ c.name }}{% if not loop.last %}, {% endif %}{% endfor %}）
+                  </option>
+                {% endfor %}
+              </select>
+              <small class="text-muted">选择班主任，其原有班级保持不变</small>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="d-flex justify-content-between align-items-center">
+        <!--<div>
+           <div class="form-check">
+            <input type="checkbox" name="lock_source" value="1" id="lockSourceCheck" class="form-check-input">
+            <label class="form-check-label" for="lockSourceCheck">调整后锁定当前班主任</label>
+          </div>
+        </div> -->
+        <div>
+          <a href="{{ url_for('admin.manage_teachers') }}" class="btn btn-secondary me-2">取消</a>
+          <button type="submit" class="btn btn-primary">确认转移</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+function filterTeachers() {
+  var deptId = document.getElementById('deptSelect').value;
+  var select = document.getElementById('teacherSelect');
+  for (var i = 0; i < select.options.length; i++) {
+    var option = select.options[i];
+    var deptIds = JSON.parse(option.getAttribute('data-dept-ids'));
+    if (deptId === '' || deptIds.indexOf(parseInt(deptId)) !== -1) {
+      option.style.display = 'block';
+    } else {
+      option.style.display = 'none';
+    }
+  }
+}
+</script>
+{% endblock %}

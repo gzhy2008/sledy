@@ -1,0 +1,43 @@
+# ===== 敏感文件 =====
+.env
+secret_key
+
+# ===== 数据库 =====
+data.db
+*.db
+
+# ===== 上传 & 导出 =====
+uploads/
+exports/
+
+# ===== 日志 =====
+logs/
+*.log
+
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# ===== 虚拟环境 =====
+venv/
+.venv/
+
+# ===== IDE =====
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ===== 备份文件 =====
+*.bak
+*.bak_*
+*.save
+*.save.*
+backup/
+
+# ===== macOS =====
+.DS_Store

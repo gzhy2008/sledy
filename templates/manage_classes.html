@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block title %}{{ super() }} - 班级管理{% endblock %}
+{% block content %}
+<h2>{% if current_user.role == 'admin' and not current_user.admin_profile.is_global %}班级查看{% else %}班级管理{% endif %}</h2>
+<div class="mb-3">
+  <a href="{{ url_for('admin.manage_classes', tab='all') }}" class="btn btn-sm {{ 'btn-info' if current_tab == 'all' else 'btn-outline-info' }}">全部（{{ counts.all }}）</a>
+  <a href="{{ url_for('admin.manage_classes', tab='active') }}" class="btn btn-sm {{ 'btn-info' if current_tab == 'active' else 'btn-outline-info' }}">活跃（{{ counts.active }}）</a>
+  <a href="{{ url_for('admin.manage_classes', tab='inactive') }}" class="btn btn-sm {{ 'btn-info' if current_tab == 'inactive' else 'btn-outline-info' }}">已停用（{{ counts.inactive }}）</a>
+  <a href="{{ url_for('admin.manage_classes', tab='graduated') }}" class="btn btn-sm {{ 'btn-info' if current_tab == 'graduated' else 'btn-outline-info' }}">已毕业（{{ counts.graduated }}）</a>
+  <a href="{{ url_for('admin.manage_classes', tab='unassigned') }}" class="btn btn-sm {{ 'btn-info' if current_tab == 'unassigned' else 'btn-outline-info' }}">未分配班主任（{{ counts.unassigned }}）</a>
+</div>
+<div class="row align-items-end mb-3">
+  <div class="col-md-4">
+    {% if current_user.role in ['super_admin', 'headteacher'] %}
+    <a href="{{ url_for('admin.create_class') }}" class="btn btn-primary mb-3">创建新班级</a>
+    {% endif %}
+  </div>
+  <div class="col-md-8">
+    <form method="get" class="row g-2">
+      <input type="hidden" name="tab" value="{{ current_tab }}">
+      <div class="col-8">
+        <input type="text" name="search" class="form-control" placeholder="搜索班级名称或班级号" value="{{ search or '' }}">
+      </div>
+      <div class="col-4">
+        <button type="submit" class="btn btn-outline-secondary w-100">搜索</button>
+      </div>
+    </form>
+  </div>
+</div>
+<table class="table">
+<thead>
+  <tr>
+    <th>班级名称</th>
+    <th>班级号</th>
+    <th>系部</th>
+    <th>班主任</th>
+    <th>状态</th>
+    <th>操作</th>
+  </tr>
+</thead>
+<tbody>
+{% for c in classes %}
+<tr>
+  <td>{{ c.name }}</td>
+  <td>{{ c.class_no }}</td>
+  <td>{{ c.department.name if c.department else '-' }}</td>
+  <td>{{ c.teacher.name if c.teacher else '未分配' }}</td>
+  <td>
+    {% if c.is_graduated %}
+    <span class="badge bg-secondary">已毕业</span>
+    {% elif not c.is_active %}
+    <span class="badge bg-warning">已停用</span>
+    {% else %}
+    <span class="badge bg-success">活跃</span>
+    {% endif %}
+  </td>
+  <td>
+    <a href="{{ url_for('teacher.view_class', class_id=c.id) }}" class="btn btn-sm btn-outline-secondary">查看</a>
+    {% if current_tab == 'unassigned' and (current_user.role == 'super_admin' or (current_user.role == 'admin' and current_user.admin_profile.is_global)) %}
+    <button type="button" class="btn btn-sm btn-primary" 
+      data-bs-toggle="modal" data-bs-target="#assignTeacherModal"
+      data-class-id="{{ c.id }}"
+      data-class-name="{{ c.name }}">分配班主任</button>
+    {% endif %}
+    {% if current_user.role == 'super_admin' or (current_user.role == 'admin' and current_user.admin_profile.is_global) %}
+    <form method="post" action="{{ url_for('teacher.toggle_class_active', class_id=c.id) }}" style="display:inline;">
+      <button type="submit" class="btn btn-sm {{ 'btn-outline-success' if not c.is_active else 'btn-outline-warning' }}">
+        {{ '启用' if not c.is_active else '停用' }}
+      </button>
+    </form>
+    <form method="post" action="{{ url_for('teacher.graduate_class', class_id=c.id) }}" style="display:inline;">
+      <button type="submit" class="btn btn-sm btn-outline-danger"
+        onclick="return confirm('毕业操作不可逆，确定要标记班级 {{ c.name }} 为毕业吗？')">毕业</button>
+    </form>
+    {% endif %}
+  </td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+{% if total > 0 %}
+<p class="text-muted">共 {{ total }} 条记录，当前第 {{ page }}/{{ total_pages }} 页</p>
+{% if total_pages > 1 %}
+<nav>
+  <ul class="pagination">
+    <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+      <a class="page-link" href="{{ url_for('admin.manage_classes', tab=current_tab, search=search, page=page-1) }}">« 上一页</a>
+    </li>
+    {% for p in range(1, total_pages + 1) %}
+    <li class="page-item {% if p == page %}active{% endif %}">
+      <a class="page-link" href="{{ url_for('admin.manage_classes', tab=current_tab, search=search, page=p) }}">{{ p }}</a>
+    </li>
+    {% endfor %}
+    <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+      <a class="page-link" href="{{ url_for('admin.manage_classes', tab=current_tab, search=search, page=page+1) }}">下一页 »</a>
+    </li>
+  </ul>
+</nav>
+{% endif %}
+{% else %}
+<p class="text-muted">暂无数据</p>
+{% endif %}
+
+
+
+<!-- 分配班主任模态框 -->
+<div class="modal fade" id="assignTeacherModal" tabindex="-1">
+<div class="modal-dialog">
+<div class="modal-content">
+<form id="assignTeacherForm" method="post">
+<div class="modal-header">
+<h5 class="modal-title">分配班主任</h5>
+<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+</div>
+<div class="modal-body">
+<p><strong>班级：</strong><span id="assignClassName"></span></p>
+<div class="mb-3">
+<label class="form-label">选择班主任</label>
+<select name="teacher_id" class="form-select" required>
+<option value="">请选择班主任</option>
+{% for t in teachers %}
+<option value="{{ t.id }}">{{ t.name }}（{{ t.id_number }}）</option>
+{% endfor %}
+</select>
+</div>
+</div>
+<div class="modal-footer">
+<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+<button type="submit" class="btn btn-primary">确认分配</button>
+</div>
+</div>
+</form>
+</div>
+</div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+var assignTeacherModal = document.getElementById('assignTeacherModal');
+assignTeacherModal.addEventListener('show.bs.modal', function(event) {
+  var button = event.relatedTarget;
+  var classId = button.getAttribute('data-class-id');
+  var className = button.getAttribute('data-class-name');
+  document.getElementById('assignClassName').textContent = className;
+  var form = document.getElementById('assignTeacherForm');
+  form.action = '/admin/class/' + classId + '/assign_teacher';
+});
+</script>
+{% endblock %}

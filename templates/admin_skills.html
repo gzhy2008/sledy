@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}{{ super() }} - 工种管理{% endblock %}
+{% block content %}
+<h2>{% if current_user.role == 'super_admin' or (current_user.role == 'admin' and current_user.admin_profile.is_global) %}工种管理{% else %}工种查看{% endif %}</h2>
+{% if current_user.role == 'super_admin' or (current_user.role == 'admin' and current_user.admin_profile.is_global) %}
+<a href="{{ url_for('admin.create_skill') }}" class="btn btn-primary mb-3">新建工种</a>
+{% endif %}
+
+<div class="mb-3">
+    <form method="get" class="row g-2">
+        <div class="col-auto">
+            <input type="text" name="search" class="form-control" placeholder="搜索工种" value="{{ search or '' }}">
+        </div>
+        <div class="col-auto">
+            <button type="submit" class="btn btn-outline-secondary">搜索</button>
+        </div>
+    </form>
+</div>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>工种名称</th>
+            <th>状态</th>
+            <th>操作</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for s in skills %}
+        <tr>
+            <td>{{ s.name }}</td>
+            <td>
+                {% if s.is_locked %}
+                <span class="badge bg-dark">已锁定</span>
+                {% else %}
+                <span class="badge bg-success">正常</span>
+                {% endif %}
+            </td>
+            <td>
+                {% if current_user.role == 'super_admin' or (current_user.role == 'admin' and current_user.admin_profile.is_global) %}
+                <a href="{{ url_for('admin.edit_skill', skill_id=s.id) }}" class="btn btn-sm btn-outline-secondary">编辑</a>
+                <form method="post" action="{{ url_for('admin.toggle_lock_skill', skill_id=s.id) }}" style="display:inline;">
+                    {% if s.is_locked %}
+                    <button type="submit" class="btn btn-sm btn-outline-success">解锁</button>
+                    {% else %}
+                    <button type="submit" class="btn btn-sm btn-outline-warning">锁定</button>
+                    {% endif %}
+                </form>
+                {% else %}
+                <span class="text-muted">仅查看</span>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

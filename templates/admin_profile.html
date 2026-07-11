@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block title %}{{ super() }} - 个人资料{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <h2>业务管理员资料完善</h2>
+        <hr>
+        <form method="post" action="{{ url_for('admin.admin_profile') }}">
+            <div class="card mb-3">
+                <div class="card-header">基本信息</div>
+                <div class="card-body">
+                    <p><strong>姓名：</strong>{{ ap.name }}</p>
+                    <p><strong>身份证号：</strong>{{ ap.id_number }}</p>
+                    <p><strong>账号：</strong>{{ current_user.username }}</p>
+                    <p><strong>邮箱验证状态：</strong>
+                        <span id="emailStatusBadge">
+                            {% if current_user.email_verified %}
+                            <span class="badge bg-success">已验证</span> ({{ current_user.email }})
+                            {% else %}
+                            <span class="badge bg-warning">未验证</span>
+                            {% endif %}
+                        </span>
+                    </p>
+                </div>
+            </div>
+            <div class="card mb-3">
+                <div class="card-header">修改密码</div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">新密码（留空不修改）</label>
+                        <input type="password" name="password" class="form-control" placeholder="至少8位，需包含大小写字母和数字">
+                    </div>
+                    <button type="submit" class="btn btn-primary">修改密码</button>
+                </div>
+            </div>
+        </form>
+
+        <!-- 手机号区域（独立保存） -->
+        <div class="card mb-3">
+            <div class="card-header">手机号 <span class="text-danger">*</span></div>
+            <div class="card-body">
+                <div id="phoneArea">
+                    <div class="input-group">
+                        <input type="text" name="phone" class="form-control" required value="{{ ap.phone or '' }}" placeholder="必填" 
+                            pattern="1[3-9]\d{9}" title="请输入有效的11位手机号码，以1开头">
+                        <button type="button" id="savePhoneBtn" class="btn btn-outline-primary" onclick="savePhone()">保存</button>
+                    </div>
+                    <small class="text-muted">请输入你自己正在使用的11位手机号</small>
+                    <div id="phoneMsg" class="small mt-1"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/email_verify.js') }}"></script>
+<script>
+// 手机号保存
+function savePhone() {
+    var phone = document.getElementById('phoneInput').value.trim();
+    if (!phone) {
+        alert('手机号不能为空');
+        return;
+    }
+    var btn = document.getElementById('savePhoneBtn');
+    btn.disabled = true;
+    btn.innerText = '保存中...';
+    fetch('/admin/update_phone', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'phone=' + encodeURIComponent(phone)
+    }).then(res => res.json()).then(data => {
+        if (data.status === 'success') {
+            document.getElementById('phoneMsg').innerHTML = '<span class="text-success">手机号已保存</span>';
+        } else {
+            alert(data.msg || '保存失败');
+        }
+        btn.disabled = false;
+        btn.innerText = '保存';
+    }).catch(err => {
+        alert('请求失败');
+        btn.disabled = false;
+        btn.innerText = '保存';
+    });
+}
+
+// 更换邮箱：重置验证状态
+function resetEmail() {
+    if (!confirm('确定要更换邮箱吗？更换后需要重新验证。')) return;
+    fetch('/admin/reset_email', { method: 'POST' })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                document.getElementById('emailVerified').style.display = 'none';
+                document.getElementById('emailVerifyArea').style.display = 'block';
+                document.getElementById('emailInput').value = '';
+                document.getElementById('emailStatusBadge').innerHTML = '<span class="badge bg-warning">未验证</span>';
+            } else {
+                alert('操作失败');
+            }
+        });
+}
+
+// 覆盖 email_verify.js 中的 verifyCode，成功后切换显示
+var originalVerifyCode = verifyCode;
+verifyCode = function() {
+    var email = document.getElementById('emailInput').value.trim();
+    var code = document.getElementById('codeInput').value.trim();
+    if (!code) {
+        alert('请输入验证码');
+        return;
+    }
+    var btn = document.getElementById('verifyBtn');
+    btn.disabled = true;
+    btn.innerText = '验证中...';
+    fetch('/verify_email_code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'email=' + encodeURIComponent(email) + '&code=' + encodeURIComponent(code)
+    }).then(res => res.json()).then(data => {
+        if (data.status === 'success') {
+            document.getElementById('emailVerified').style.display = 'block';
+            document.getElementById('emailDisplay').textContent = email;
+            document.getElementById('emailVerifyArea').style.display = 'none';
+            document.getElementById('emailStatusBadge').innerHTML = '<span class="badge bg-success">已验证</span>';
+            alert('邮箱验证成功');
+        } else {
+            alert(data.msg || '验证失败');
+        }
+        btn.disabled = false;
+        btn.innerText = '验证';
+    }).catch(err => {
+        alert('请求失败');
+        btn.disabled = false;
+        btn.innerText = '验证';
+    });
+};
+</script>
+{% endblock %}

@@ -1,0 +1,319 @@
+{% extends "base.html" %}
+{% block title %}{{ super() }} - 批次管理{% endblock %}
+{% block content %}
+<h2>批次管理</h2>
+<div class="mb-3">
+  {% if current_user.role == 'super_admin' or (current_user.role == 'admin' and current_user.admin_profile.is_global) %}
+  <a href="{{ url_for('admin.create_batch') }}" class="btn btn-primary">创建新批次</a>
+  {% endif %}
+</div>
+<!-- 状态筛选选项卡 -->
+<div class="status-tabs mb-3">
+  <a href="{{ url_for('admin.manage_batches', status='active') }}" 
+    class="btn btn-sm {{ 'btn-success' if current_status == 'active' else 'btn-outline-success' }}">进行中</a>
+  <a href="{{ url_for('admin.manage_batches', status='expired') }}" 
+    class="btn btn-sm {{ 'btn-purple' if current_status == 'expired' else 'btn-outline-purple' }}">已截止</a>
+  <a href="{{ url_for('admin.manage_batches', status='archived') }}" 
+    class="btn btn-sm {{ 'btn-secondary' if current_status == 'archived' else 'btn-outline-secondary' }}">已归档</a>
+  <a href="{{ url_for('admin.manage_batches', status='all') }}" 
+    class="btn btn-sm {{ 'btn-primary' if current_status == 'all' else 'btn-outline-primary' }}">全部</a>
+</div>
+
+<!-- 搜索筛选区域 -->
+<div class="card mb-4">
+  <div class="card-header"><strong>筛选条件</strong></div>
+  <div class="card-body">
+    <form method="get" action="{{ url_for('admin.manage_batches') }}">
+      <input type="hidden" name="status" value="{{ current_status }}">
+      <div class="row g-2 align-items-end">
+        <div class="col-md-4">
+          <label class="form-label">工种</label>
+          <select name="skill_name" class="form-select" onchange="this.form.submit()">
+            <option value="">所有工种</option>
+            {% for s in skills %}
+            <option value="{{ s.name }}" {% if skill_name == s.name %}selected{% endif %}>{{ s.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">批次号搜索</label>
+          <input type="text" name="search" class="form-control" placeholder="输入批次号关键词" value="{{ search or '' }}">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">批次简述搜索</label>
+          <input type="text" name="keyword" class="form-control" placeholder="输入批次简述关键词" value="{{ keyword or '' }}">
+        </div>
+      </div>
+      <div class="mt-2 d-flex justify-content-end">
+        <button type="submit" class="btn btn-primary me-2">筛选</button>
+        <a href="{{ url_for('admin.manage_batches') }}" class="btn btn-outline-secondary">重置</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- 记录统计 -->
+
+<table class="table">
+  <thead>
+    <tr>
+      <th>批次名称</th>
+      <th>工种/等级</th>
+      <th>报名时间</th>
+      <th>认定时间</th>
+      <th>状态</th>
+      <th>未审/总数</th>
+      <th>操作</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for b in batches %}
+  <tr>
+    <td>
+      <div>{{ b.display_title }}</div>
+      <small class="text-muted">
+      {% if current_status == 'archived' or current_status == 'all' or current_status == 'expired' %}
+        {{ b.batch_name }}
+      {% else %}
+        <a href="{{ url_for('admin.batch_reviews', batch_name=b.batch_name) }}">{{ b.batch_name }}</a>
+      {% endif %}
+      </small>
+    </td>
+    <td>{{ b.skill.name }} / {{ b.skill_level }}</td>
+    <td>{{ b.start_time.strftime('%Y-%m-%d %H:%M') }}<br>至<br>{{ b.end_time.strftime('%Y-%m-%d %H:%M') }}</td>
+    <td>
+      {% if b.work_start_time %}
+        {{ b.work_start_time.strftime('%Y-%m-%d %H:%M') }}<br>至<br>{{ b.work_end_time.strftime('%Y-%m-%d %H:%M') if b.work_end_time else '无' }}
+      {% else %}
+        <span class="text-muted">未设置</span>
+      {% endif %}
+    </td>
+    <td>
+      {% if b.is_locked %}
+      <span class="badge bg-dark">已锁定</span>
+      {% elif b.is_archived %}
+      <span class="badge bg-secondary">已归档</span>
+      {% elif b.end_time >= now %}
+      <span class="badge bg-success">进行中</span>
+      {% else %}
+      <span class="badge bg-warning">已截止</span>
+      {% endif %}
+    </td>
+    <td>
+      {% set stats = batch_stats.get(b.id, (0, 0)) %}
+      {% set pending = stats[0] %}
+      {% set total_students = stats[1] %}
+      {% if total_students == 0 %}
+        {% set status_class = 'batch-status-0' %}
+      {% elif pending == 0 %}
+        {% set status_class = 'batch-status-1' %}
+      {% elif pending == total_students %}
+        {% set status_class = 'batch-status-2' %}
+      {% else %}
+        {% set status_class = 'batch-status-3' %}
+      {% endif %}
+      <span title="待审核 {{ pending }} / 总报名 {{ total_students }}"
+        class="{{ status_class }}"
+        style="font-weight: bold;">
+        {{ pending }} / {{ total_students }}
+      </span>
+    </td>
+    <td>
+      {% if current_status == 'archived' %}
+      <!-- 已归档选项卡 -->
+      <div class="btn-group" style="position: static;">
+        <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+          更多
+        </button>
+        <ul class="dropdown-menu" style="z-index: 1050;">
+          <li><a class="dropdown-item" href="{{ url_for('admin.edit_batch_classes', batch_id=b.id) }}" title="查看该批次面向的班级">查看班级</a></li>
+
+
+          <li><hr class="dropdown-divider"></li>
+          <li>
+            <form method="post" action="{{ url_for('admin.toggle_batch_archive', batch_id=b.id) }}">
+              <button type="submit" class="dropdown-item">取消归档</button>
+            </form>
+          </li>
+        </ul>
+      </div>
+      {% elif current_status == 'all' %}
+      <!-- 全部选项卡 -->
+      <div class="btn-group" style="position: static;">
+        <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+          更多
+        </button>
+        <ul class="dropdown-menu" style="z-index: 1050;">
+          <li><a class="dropdown-item" href="{{ url_for('admin.edit_batch_classes', batch_id=b.id) }}" title="查看该批次面向的班级">查看班级</a></li>
+
+
+        </ul>
+      </div>
+      {% elif current_status == 'expired' %}
+      <!-- 已截止选项卡 -->
+      <div class="btn-group" style="position: static;">
+        <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+          更多
+        </button>
+        <ul class="dropdown-menu" style="z-index: 1050;">
+          <li><a class="dropdown-item" href="{{ url_for('admin.edit_batch_classes', batch_id=b.id) }}" title="查看该批次面向的班级">查看班级</a></li>
+
+
+          <li><hr class="dropdown-divider"></li>
+          <li>
+            <button type="button" class="dropdown-item" 
+              data-bs-toggle="modal" data-bs-target="#editTimeModal" 
+              data-batch-id="{{ b.id }}" 
+              data-batch-name="{{ b.batch_name }}"
+              data-start-time="{{ b.start_time.strftime('%Y-%m-%dT%H:%M') }}"
+              data-end-time="{{ b.end_time.strftime('%Y-%m-%dT%H:%M') }}"
+              data-work-start-time="{{ b.work_start_time.strftime('%Y-%m-%dT%H:%M') if b.work_start_time else '' }}"
+              data-work-end-time="{{ b.work_end_time.strftime('%Y-%m-%dT%H:%M') if b.work_end_time else '' }}">
+              修改时间
+            </button>
+          </li>
+          <li>
+            <form method="post" action="{{ url_for('admin.toggle_batch_archive', batch_id=b.id) }}">
+              <button type="submit" class="dropdown-item">批次归档</button>
+            </form>
+          </li>
+        </ul>
+      </div>
+      {% else %}
+      <!-- 进行中选项卡（完整操作） -->
+      <a href="{{ url_for('admin.batch_reviews', batch_name=b.batch_name) }}" class="btn btn-sm btn-primary" title="查看该批次的报名">查看</a>
+      <form method="post" action="{{ url_for('admin.export_batch', batch=b.batch_name) }}" style="display:inline;">
+        <button type="submit" class="btn btn-sm btn-outline-success" title="导出全部已通过学生资料">导出</button>
+      </form>
+      <div class="btn-group" style="position: static;">
+        <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+          更多
+        </button>
+        <ul class="dropdown-menu" style="z-index: 1050;">
+          <li><a class="dropdown-item" href="{{ url_for('admin.edit_batch_classes', batch_id=b.id) }}" title="编辑该批次面向的班级">分配班级</a></li>
+
+
+          <li><hr class="dropdown-divider"></li>
+          <li>
+              <button type="button" class="dropdown-item" 
+                data-bs-toggle="modal" data-bs-target="#editTimeModal" 
+                data-batch-id="{{ b.id }}" 
+                data-batch-name="{{ b.batch_name }}"
+                data-start-time="{{ b.start_time.strftime('%Y-%m-%dT%H:%M') }}"
+                data-end-time="{{ b.end_time.strftime('%Y-%m-%dT%H:%M') }}"
+                data-work-start-time="{{ b.work_start_time.strftime('%Y-%m-%dT%H:%M') if b.work_start_time else '' }}"
+                data-work-end-time="{{ b.work_end_time.strftime('%Y-%m-%dT%H:%M') if b.work_end_time else '' }}">修改时间
+              </button>
+          </li>
+          {% if current_user.role == 'super_admin' or (current_user.role == 'admin' and current_user.admin_profile.is_global) %}
+          <li>
+            <form method="post" action="{{ url_for('admin.toggle_batch_lock', batch_id=b.id) }}">
+              <button type="submit" class="dropdown-item">
+                {% if b.is_locked %}解锁批次{% else %}锁定批次{% endif %}
+              </button>
+            </form>
+          </li>
+          {% endif %}
+          <li><hr class="dropdown-divider"></li>
+          <li>
+            <form method="post" action="{{ url_for('admin.toggle_batch_archive', batch_id=b.id) }}">
+              <button type="submit" class="dropdown-item">批次归档</button>
+            </form>
+          </li>
+        </ul>
+      </div>
+      {% endif %}
+    </td>
+  </tr>
+  {% endfor %}
+</tbody>
+</table>
+
+<!-- 分页导航 -->
+{% if total > 0 %}
+<p class="text-muted">共 {{ total }} 条记录，当前第 {{ page }}/{{ total_pages }} 页</p>
+  {% if total_pages > 1 %}
+  <nav>
+    <ul class="pagination">
+      <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+        <a class="page-link" href="{{ url_for('admin.manage_batches', status=current_status, search=search, page=page-1) }}">« 上一页</a>
+      </li>
+      {% for p in range(1, total_pages + 1) %}
+      <li class="page-item {% if p == page %}active{% endif %}">
+        <a class="page-link" href="{{ url_for('admin.manage_batches', status=current_status, search=search, page=p) }}">{{ p }}</a>
+      </li>
+      {% endfor %}
+      <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+        <a class="page-link" href="{{ url_for('admin.manage_batches', status=current_status, search=search, page=page+1) }}">下一页 »</a>
+      </li>
+    </ul>
+  </nav>
+  {% endif %}
+{% else %}
+<p class="text-muted">暂无数据</p>
+{% endif %}
+
+<!-- 修改时间模态框 -->
+<div class="modal fade" id="editTimeModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="editTimeForm" method="post">
+        <div class="modal-header">
+          <h5 class="modal-title">修改批次时间</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <p><strong>批次：</strong><span id="modalBatchName"></span></p>
+          <div class="mb-3">
+            <label class="form-label">报名开始时间</label>
+            <input type="datetime-local" name="start_time" id="newStartTime" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">报名结束时间</label>
+            <input type="datetime-local" name="end_time" id="newEndTime" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">认定开始时间（可选）</label>
+            <input type="datetime-local" name="work_start_time" id="newWorkStartTime" class="form-control">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">认定结束时间（可选）</label>
+            <input type="datetime-local" name="work_end_time" id="newWorkEndTime" class="form-control">
+          </div>
+          <small class="text-muted">
+            报名开始时间 < 报名结束时间 ≤ 认定开始时间 < 认定结束时间
+          </small>
+        </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+            <button type="submit" class="btn btn-primary">保存</button>
+          </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+var editTimeModal = document.getElementById('editTimeModal');
+editTimeModal.addEventListener('show.bs.modal', function(event) {
+  var button = event.relatedTarget;
+  var batchId = button.getAttribute('data-batch-id');
+  var batchName = button.getAttribute('data-batch-name');
+  var startTime = button.getAttribute('data-start-time');
+  var endTime = button.getAttribute('data-end-time');
+  var workStartTime = button.getAttribute('data-work-start-time') || '';
+  var workEndTime = button.getAttribute('data-work-end-time') || '';
+  
+  document.getElementById('modalBatchName').textContent = batchName;
+  document.getElementById('newStartTime').value = startTime;
+  document.getElementById('newEndTime').value = endTime;
+  document.getElementById('newWorkStartTime').value = workStartTime;
+  document.getElementById('newWorkEndTime').value = workEndTime;
+  
+  var form = document.getElementById('editTimeForm');
+  form.action = '/admin/batch/' + batchId + '/update_end_time';
+});
+</script>
+{% endblock %}

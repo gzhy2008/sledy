@@ -1,0 +1,14 @@
+/* 图片预览模块基本样式 */
+.photo-preview-container {
+    margin-top: 10px;
+}
+.photo-preview-container img {
+    max-height: 150px;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    padding: 2px;
+}
+.photo-error {
+    font-size: 0.875em;
+    margin-top: 5px;
+}

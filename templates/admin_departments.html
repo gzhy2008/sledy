@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}{{ super() }} - 系部管理{% endblock %}
+{% block content %}
+<h2>{% if current_user.role == 'super_admin' %}系部管理{% else %}系部查看{% endif %}</h2>
+{% if current_user.role == 'super_admin' %}
+<a href="{{ url_for('admin.create_department') }}" class="btn btn-primary mb-3">新增系部</a>
+{% endif %}
+<table class="table">
+<thead>
+<tr><th>ID</th><th>系部名称</th><th>关联班级</th><th>操作</th></tr>
+</thead>
+<tbody>
+{% for d in departments %}
+<tr>
+<td>{{ d.id }}</td>
+<td>{{ d.name }}</td>
+<td>
+    {% set classes = department_classes.get(d.id, []) %}
+    {{ classes|length }} 个
+    {% if classes %}
+    <button type="button" class="btn btn-sm btn-link p-0" data-bs-toggle="modal" data-bs-target="#classListModal{{ d.id }}">
+        查看
+    </button>
+    <div class="modal fade" id="classListModal{{ d.id }}" tabindex="-1">
+        <div class="modal-dialog modal-sm">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h6 class="modal-title">{{ d.name }} 班级列表</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <ul class="list-unstyled mb-0">
+                        {% for c in classes %}
+                        <li>{{ c.name }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</td>
+<td>
+{% if current_user.role == 'super_admin' %}
+<a href="{{ url_for('admin.edit_department', dept_id=d.id) }}" class="btn btn-sm btn-outline-primary">编辑</a>
+<form method="post" action="{{ url_for('admin.delete_department', dept_id=d.id) }}" style="display:inline;" onsubmit="return confirm('确认删除此系部？')">
+<button type="submit" class="btn btn-sm btn-outline-danger">删除</button>
+</form>
+{% else %}
+<span class="text-muted">仅查看</span>
+{% endif %}
+</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+{% endblock %}

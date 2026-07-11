@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}创建业务管理员{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-4">
+        <h2>创建业务管理员</h2>
+        {% if current_global %}
+            <div class="alert alert-info">
+                当前全局管理员：<strong>{{ current_global.name }}</strong>（{{ current_global.user.username }}）
+            </div>
+        {% endif %}
+        <form method="post">
+            <div class="mb-3">
+                <label class="form-label">姓名</label>
+                <input type="text" name="name" class="form-control" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">身份证号</label>
+                <input type="text" name="id_number" class="form-control" required maxlength="18">
+            </div>
+            <div class="mb-3 form-check">
+                <input type="checkbox" name="is_global" value="1" id="isGlobalCheck" class="form-check-input" onchange="toggleDepts()">
+                <label class="form-check-label" for="isGlobalCheck">全局管理员（可管理所有系部）</label>
+                {% if current_global %}
+                    <small class="text-danger d-block">⚠ 勾选后将锁定当前全局管理员，并升级此用户为新的全局管理员</small>
+                {% endif %}
+            </div>
+            <div class="mb-3" id="deptSelection">
+                <label class="form-label">管辖系部（可多选）</label>
+                <select name="department_ids" multiple class="form-select" size="5">
+                    {% for d in departments %}
+                        <option value="{{ d.id }}"> {{ d.name }}
+                            {% if d.id in dept_usage %}
+                                （已被 {{ dept_usage[d.id]|join('、') }} 选择）
+                            {% endif %}
+                        </option>
+                    {% endfor %}
+                </select>
+                <small class="text-muted">
+                    按住 Ctrl 多选 | 至少选择 <strong>1</strong> 个，最多选择 <strong>{{ (departments|length) - 1 }}</strong> 个（共 {{ departments|length }} 个系部）
+                </small>
+            </div>
+            <button type="submit" class="btn btn-primary">创建</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function toggleDepts() {
+        var check = document.getElementById('isGlobalCheck');
+        document.getElementById('deptSelection').style.display = check.checked ? 'none' : 'block';
+    }
+    window.onload = function() {
+        toggleDepts();
+    }
+</script>
+{% endblock %}

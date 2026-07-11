@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% block title %}档案审核{% endblock %}
+{% block content %}
+<h2>学生档案审核</h2>
+
+<!-- 状态筛选选项卡 -->
+<div class="status-tabs mb-3">
+    <a href="{{ url_for('admin.admin_profiles', status='pending') }}" class="btn btn-sm {{ 'btn-purple' if current_status == 'pending' else 'btn-outline-purple' }}">待审核 {% set n = status_counts.get('pending', 0) %}{% if n %}<span class="badge bg-danger">{{ n }}</span>{% endif %}</a>
+    <a href="{{ url_for('admin.admin_profiles', status='approved') }}" class="btn btn-sm {{ 'btn-success' if current_status == 'approved' else 'btn-outline-success' }}">已通过 {% set n = status_counts.get('approved', 0) %}{% if n %}<span class="badge bg-light text-dark">{{ n }}</span>{% endif %}</a>
+    <a href="{{ url_for('admin.admin_profiles', status='rejected') }}" class="btn btn-sm {{ 'btn-danger' if current_status == 'rejected' else 'btn-outline-danger' }}">已拒绝 {% set n = status_counts.get('rejected', 0) %}{% if n %}<span class="badge bg-light text-dark">{{ n }}</span>{% endif %}</a>
+    <a href="{{ url_for('admin.admin_profiles', status='all') }}" class="btn btn-sm {{ 'btn-secondary' if current_status == 'all' else 'btn-outline-secondary' }}">全部</a>
+</div>
+
+<!-- 搜索栏 -->
+<div class="card mb-3">
+    <div class="card-body py-2">
+        <form method="get" class="row g-2 align-items-end">
+            <input type="hidden" name="status" value="{{ current_status }}">
+            <div class="col-md-3">
+                <label class="form-label">姓名（模糊）</label>
+                <input type="text" name="name" class="form-control" value="{{ name or '' }}" placeholder="输入姓名">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">身份证号（精确）</label>
+                <input type="text" name="id_number" class="form-control" value="{{ id_number or '' }}" placeholder="18位">
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-primary">搜索</button>
+                <a href="{{ url_for('admin.admin_profiles', status=current_status) }}" class="btn btn-outline-secondary">重置</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 记录统计 -->
+
+<!-- 档案列表 -->
+<table class="table">
+    <thead><tr><th>姓名</th><th>身份证号</th><th>手机</th><th>状态</th><th>操作</th></tr></thead>
+    <tbody>
+        {% for p in profiles %}
+        <tr>
+            <td>{{ p.name }}</td>
+            <td>{{ p.id_number }}</td>
+            <td>{{ p.phone or '' }}</td>
+            <td>
+                {% if p.status == 'pending' %}
+                <span class="badge bg-warning">待审核</span>
+                {% elif p.status == 'approved' %}
+                <span class="badge bg-success">已通过</span>
+                {% else %}
+                <span class="badge bg-danger">已拒绝 ({{ p.reject_reason }})</span>
+                {% endif %}
+            </td>
+            <td>
+                {% if p.status == 'pending' %}
+                <a href="{{ url_for('admin.review_profile', profile_id=p.id) }}" class="btn btn-sm btn-info" target="_blank">审核</a>
+                {% else %}
+                <a href="{{ url_for('admin.review_profile', profile_id=p.id) }}" class="btn btn-sm btn-outline-secondary" target="_blank">查看</a>
+                <form method="post" action="{{ url_for('admin.reset_student_profile', profile_id=p.id) }}" style="display:inline;">
+                    <button type="submit" class="btn btn-sm btn-purple" onclick="return confirm('确认重置该学生档案状态为待审核？')">重置</button>
+                </form>
+                {% endif %}
+                <button type="button" class="btn btn-sm btn-outline-secondary ms-1"
+                    data-bs-toggle="modal" data-bs-target="#changeEmailModal"
+                    data-profile-id="{{ p.id }}"
+                    data-student-name="{{ p.name }}"
+                    data-current-email="{{ p.user.email or '未填写' }}">
+                    修改邮箱
+                </button>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<!-- 分页导航 -->
+{% if total > 0 %}
+    <p class="text-muted">共 {{ total }} 条记录，当前第 {{ page }}/{{ total_pages }} 页</p>
+    {% if total_pages > 1 %}
+        <nav>
+            <ul class="pagination">
+                <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+                    <a class="page-link" href="{{ url_for('admin.admin_profiles', status=current_status, name=name, id_number=id_number, page=page-1) }}">« 上一页</a>
+                </li>
+                {% for p in range(1, total_pages + 1) %}
+                <li class="page-item {% if p == page %}active{% endif %}">
+                    <a class="page-link" href="{{ url_for('admin.admin_profiles', status=current_status, name=name, id_number=id_number, page=p) }}">{{ p }}</a>
+                </li>
+                {% endfor %}
+                <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+                    <a class="page-link" href="{{ url_for('admin.admin_profiles', status=current_status, name=name, id_number=id_number, page=page+1) }}">下一页 »</a>
+                </li>
+            </ul>
+        </nav>
+        {% endif %}
+    {% else %}
+    <p class="text-muted">暂无数据</p>
+{% endif %}
+
+<!-- 修改邮箱模态框（保持原有代码） -->
+<div class="modal fade" id="changeEmailModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="changeEmailForm" method="post">
+        <div class="modal-header">
+          <h5 class="modal-title">修改学生邮箱</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <p><strong>学生姓名：</strong><span id="modalStudentName"></span></p>
+          <p><strong>当前邮箱：</strong><span id="modalCurrentEmail"></span></p>
+          <div class="mb-3">
+            <label for="newEmail" class="form-label">新邮箱</label>
+            <input type="email" name="new_email" id="newEmail" class="form-control" required>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+          <button type="submit" class="btn btn-primary">保存</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+var changeEmailModal = document.getElementById('changeEmailModal');
+if (changeEmailModal) {
+    changeEmailModal.addEventListener('show.bs.modal', function(event) {
+        var button = event.relatedTarget;
+        var profileId = button.getAttribute('data-profile-id');
+        var studentName = button.getAttribute('data-student-name');
+        var currentEmail = button.getAttribute('data-current-email');
+
+        document.getElementById('modalStudentName').textContent = studentName;
+        document.getElementById('modalCurrentEmail').textContent = currentEmail;
+        document.getElementById('newEmail').value = '';
+
+        var form = document.getElementById('changeEmailForm');
+        form.action = '/admin/update_student_email/' + profileId;
+    });
+}
+</script>
+{% endblock %}

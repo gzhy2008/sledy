@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+{% block title %}{{ super() }} - 报名管理{% endblock %}
+{% block content %}
+<h2>报名管理</h2>
+<!-- 状态选项卡 -->
+<div class="status-tabs mb-3">
+    <a href="{{ url_for('admin.admin_dashboard', status='pending') }}"
+       class="btn btn-sm {{ 'btn-purple' if current_status == 'pending' else 'btn-outline-purple' }}">
+       待审核{% set n = status_counts.get('pending', 0) %}{% if n %} <span class="badge bg-danger">{{ n }}</span>{% endif %}
+    </a>
+    <a href="{{ url_for('admin.admin_dashboard', status='approved') }}"
+       class="btn btn-sm {{ 'btn-success' if current_status == 'approved' else 'btn-outline-success' }}">
+       已通过{% set n = status_counts.get('approved', 0) %}{% if n %} <span class="badge bg-light text-dark">{{ n }}</span>{% endif %}
+    </a>
+    <a href="{{ url_for('admin.admin_dashboard', status='rejected') }}"
+       class="btn btn-sm {{ 'btn-danger' if current_status == 'rejected' else 'btn-outline-danger' }}">
+       已拒绝{% set n = status_counts.get('rejected', 0) %}{% if n %} <span class="badge bg-light text-dark">{{ n }}</span>{% endif %}
+    </a>
+    <a href="{{ url_for('admin.admin_dashboard', status='withdrawn') }}"
+       class="btn btn-sm {{ 'btn-secondary' if current_status == 'withdrawn' else 'btn-outline-secondary' }}">
+       已退出{% set n = status_counts.get('withdrawn', 0) %}{% if n %} <span class="badge bg-light text-dark">{{ n }}</span>{% endif %}
+    </a>
+    <a href="{{ url_for('admin.admin_dashboard', status='all') }}"
+       class="btn btn-sm {{ 'btn-primary' if current_status == 'all' else 'btn-outline-primary' }}">全部</a>
+</div>
+<!-- 搜索筛选区域 -->
+<div class="card mb-4">
+  <div class="card-header"><strong>筛选条件</strong></div>
+  <div class="card-body">
+    <form method="get" action="{{ url_for('admin.admin_dashboard') }}" id="filterForm">
+      <input type="hidden" name="status" value="{{ current_status }}">
+      <div class="row g-2 align-items-end">
+        <div class="col-md-4">
+          <label class="form-label">工种（精确）</label>
+          <select name="skill_name" class="form-select" onchange="this.form.submit()">
+            <option value="">所有工种</option>
+            {% for s in skills %}
+            <option value="{{ s.name }}" {% if skill_name == s.name %}selected{% endif %}>{{ s.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">批次搜索</label>
+          <div class="input-group">
+            <input type="text" id="batchSearchInput" class="form-control" placeholder="输入关键词" value="{{ batch_search }}">
+            <button type="button" class="btn btn-outline-secondary" onclick="searchBatch()">搜索</button>
+          </div>
+          <div id="batchResultList" class="mt-2" style="display:none;">
+            <select id="batchSelect" class="form-select" size="5" onchange="selectBatch()"></select>
+          </div>
+          <input type="hidden" name="batch_search" id="hiddenBatchSearch" value="{{ batch_search }}">
+        </div>
+        <div class="col-md-4">
+          <button type="submit" class="btn btn-primary me-2">筛选</button>
+          <a href="{{ url_for('admin.admin_dashboard', status=current_status) }}" class="btn btn-outline-secondary">重置</a>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+<!-- 记录统计 -->
+<!-- 学生列表 -->
+{% if students %}
+<form method="post" action="{{ url_for('admin.approve_students', batch=current_batch) }}">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>选择</th>
+        <th>姓名</th>
+        <th>班级</th>
+        <th>身份证</th>
+        <th>批次</th>
+        <th>工种</th>
+        <th>等级</th>
+        <th>报名时间</th>
+        <th>状态</th>
+        <th>操作</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in students %}
+      <tr>
+        <td><input type="checkbox" name="student_ids" value="{{ s.id }}"></td>
+        <td>{{ s.name }}</td>
+        <td>
+          {% set profile = s.user.profile %}
+          {% if profile and profile.class_group %}
+          <a href="{{ url_for('teacher.view_class', class_id=profile.class_group.id) }}" target="_blank">{{ profile.class_group.name }}</a>
+          {% else %}
+          <span class="text-muted">未分配</span>
+          {% endif %}
+        </td>
+        <td>{{ s.id_number }}</td>
+        <td>{{ s.batch.batch_name }}</td>
+        <td>{{ s.batch.skill.name }}</td>
+        <td>{{ s.batch.skill_level }}</td>
+        <td>{{ s.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+        <td>
+          <span class="badge bg-{{ 'success' if s.status=='approved' else 'warning' }}">{{ s.status }}</span>
+        </td>
+        <td>
+          {% if s.status == 'pending' %}
+          <a href="{{ url_for('admin.review_student', student_id=s.id, batch=current_batch) }}" target="_blank" class="btn btn-sm btn-info">审核</a>
+          {% else %}
+          <a href="{{ url_for('admin.review_student', student_id=s.id, batch=current_batch) }}" target="_blank" class="btn btn-sm btn-outline-secondary">查看</a>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% if current_user.role in ['admin', 'super_admin'] and current_status == 'pending' %}
+    <button type="submit" name="action" value="approve" class="btn btn-success">批量通过</button>
+    <button type="submit" name="action" value="reject" class="btn btn-danger">批量拒绝</button>
+  {% endif %}
+</form>
+{% else %}
+<div class="alert alert-info">无数据</div>
+{% endif %}
+  <!-- 分页导航 -->
+  {% if total > 0 %}
+    <p class="text-muted">共 {{ total }} 条记录，当前第 {{ page }}/{{ total_pages }} 页</p>
+    {% if total_pages > 1 %}
+      <nav>
+        <ul class="pagination">
+          <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+            <a class="page-link" href="{{ url_for('admin.admin_dashboard', status=current_status, skill_name=skill_name, batch_search=batch_search, page=page-1) }}">« 上一页</a>
+          </li>
+          {% for p in range(1, total_pages + 1) %}
+          <li class="page-item {% if p == page %}active{% endif %}">
+            <a class="page-link" href="{{ url_for('admin.admin_dashboard', status=current_status, skill_name=skill_name, batch_search=batch_search, page=p) }}">{{ p }}</a>
+          </li>
+          {% endfor %}
+          <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+            <a class="page-link" href="{{ url_for('admin.admin_dashboard', status=current_status, skill_name=skill_name, batch_search=batch_search, page=page+1) }}">下一页 »</a>
+          </li>
+        </ul>
+      </nav>
+    {% endif %}
+    {% else %}
+    <p class="text-muted">暂无数据</p>
+  {% endif %}
+{% endblock %}
+{% block scripts %}
+<script>
+var allBatches = JSON.parse('{{ batches | tojson | safe }}');
+function searchBatch() {
+  var keyword = document.getElementById('batchSearchInput').value.trim();
+  if (keyword.length < 1) { alert('请输入关键词'); return; }
+  var results = allBatches.filter(function(b) {
+    return b.batch_name.includes(keyword) || (b.skill_name && b.skill_name.includes(keyword));
+  });
+  var select = document.getElementById('batchSelect');
+  var resultDiv = document.getElementById('batchResultList');
+  select.innerHTML = '';
+  if (results.length === 0) { resultDiv.style.display = 'none'; alert('未找到匹配的批次'); return; }
+  results.forEach(function(b) {
+    var opt = document.createElement('option');
+    opt.value = b.batch_name;
+    opt.textContent = b.display_title + ' (' + b.batch_name + ')';
+    select.appendChild(opt);
+  });
+  resultDiv.style.display = 'block';
+}
+function selectBatch() {
+  var val = document.getElementById('batchSelect').value;
+  if (val) {
+    document.getElementById('batchSearchInput').value = val;
+    document.getElementById('hiddenBatchSearch').value = val;
+    document.getElementById('batchResultList').style.display = 'none';
+  }
+}
+document.getElementById('batchSearchInput').addEventListener('keypress', function(e) {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    document.getElementById('filterForm').submit();
+  }
+});
+</script>
+{% endblock %}

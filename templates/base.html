@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}技能认定资料收集系统{% endblock %}</title>
+    <link href="{{ url_for('static', filename='lib/bootstrap/5.3.0/css/bootstrap.min.css') }}" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='lib/font-awesome/6.0.0-beta3/css/all.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <style>
+        :root { {{ theme_css_vars }} }
+        .navbar.bg-primary { background: linear-gradient(135deg, var(--primary), var(--secondary)) !important; }
+        .navbar-nav .nav-link { white-space: nowrap; }
+        /* 统一按钮样式 */
+        .btn { font-weight: 600; border-radius: 8px; }
+        .btn-sm { border-radius: 6px; }
+        /* 状态选项卡 (btn-group) */
+        .status-tabs .btn { padding: 6px 16px; }
+        /* 紫色按钮 (替代 warning 橙色) */
+        .btn-purple { background-color: #6f42c1; border-color: #6f42c1; color: #fff; }
+        .btn-purple:hover { background-color: #5a32a3; border-color: #5a32a3; color: #fff; }
+        .btn-outline-purple { border-color: #6f42c1; color: #6f42c1; }
+        .btn-outline-purple:hover { background-color: #6f42c1; border-color: #6f42c1; color: #fff; }
+    </style>
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary fixed-top">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('auth.dashboard') }}">
+                {% if site_logo %}
+                <img src="{{ url_for('uploaded_file', filename=site_logo) }}" height="28" class="me-1" alt="">
+                {% else %}
+                📋
+                {% endif %}
+                {{ site_title }}
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+                    aria-controls="navbarNav" aria-expanded="false" aria-label="切换导航">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav me-auto" id="mainNav">
+                <!-- 未登录（匿名）菜单 -->
+                {% if not current_user.is_authenticated %}
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.index') }}">首页</a></li>
+                <li class="nav-item"><a class="nav-link" href="#">通知公告（建设中）</a></li>
+                <!-- 学生菜单 -->
+                {% elif current_user.role == 'student' %}
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('student.student_dashboard') }}">我的控制台</a></li>
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('student.student_account') }}">账户管理</a></li>
+                <!-- 班主任菜单 -->
+                {% elif current_user.role == 'headteacher' %}
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('teacher.teacher_classes') }}">班级管理</a></li>
+                <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle" href="#" id="htMoreDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    更多
+                </a>
+                <ul class="dropdown-menu" aria-labelledby="htMoreDropdown">
+                    <li><a class="dropdown-item" href="{{ url_for('teacher.teacher_profile') }}">个人资料</a></li>
+                    <li><a class="dropdown-item" href="{{ url_for('teacher.teacher_account') }}">账户管理</a></li>
+                </ul>
+                </li>
+                <!-- 业务管理员菜单 -->
+                {% elif current_user.role == 'admin' %}
+                {% if current_user.admin_profile.is_global %}
+                <!-- 全局业务管理员 -->
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.manage_batches') }}">批次管理</a></li>
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.admin_dashboard') }}">报名管理</a></li>
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.manage_teachers') }}">班主任管理</a></li>
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.manage_skills') }}">工种管理</a></li>
+                <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle" href="#" id="adminMoreDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    更多
+                </a>
+                <ul class="dropdown-menu" aria-labelledby="adminMoreDropdown">
+                    <li><a class="dropdown-item" href="{{ url_for('admin.manage_departments') }}">系部查看</a></li>
+                    <li><a class="dropdown-item" href="{{ url_for('admin.manage_classes') }}">班级管理</a></li>
+                    <li><a class="dropdown-item" href="{{ url_for('admin.admin_profiles') }}">学生档案审核</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="{{ url_for('admin.manage_notices') }}">通知管理</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="{{ url_for('admin.admin_profile') }}">个人资料</a></li>
+                    <li><a class="dropdown-item" href="{{ url_for('admin.admin_account') }}">账户管理</a></li>
+                </ul>
+                </li>
+                {% else %}
+                <!-- 普通业务管理员 -->
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.manage_batches') }}">批次管理</a></li>
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.admin_dashboard') }}">报名管理</a></li>
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.admin_profiles') }}">学生档案审核</a></li>
+                <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle" href="#" id="adminMoreDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    更多
+                </a>
+                <ul class="dropdown-menu" aria-labelledby="adminMoreDropdown">
+                    <li><a class="dropdown-item" href="{{ url_for('admin.manage_departments') }}">系部查看</a></li>
+                    <li><a class="dropdown-item" href="{{ url_for('admin.manage_classes') }}">班级查看</a></li>
+                    <li><a class="dropdown-item" href="{{ url_for('admin.manage_skills') }}">工种查看</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="{{ url_for('admin.admin_profile') }}">个人资料</a></li>
+                    <li><a class="dropdown-item" href="{{ url_for('admin.admin_account') }}">账户管理</a></li>
+                </ul>
+                </li>
+                {% endif %}
+                <!-- 超管菜单 -->
+                {% elif current_user.role == 'super_admin' %}
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('super_admin.super_admin_dashboard') }}">用户管理</a></li>
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.manage_departments') }}">系部管理</a></li>
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.manage_skills') }}">工种管理</a></li>
+                <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle" href="#" id="saMoreDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    更多
+                </a>
+                <ul class="dropdown-menu" aria-labelledby="saMoreDropdown">
+                    <li><a class="dropdown-item" href="{{ url_for('admin.manage_classes') }}">班级管理</a></li>
+                    <li><a class="dropdown-item" href="{{ url_for('admin.manage_teachers') }}">班主任管理</a></li>
+                    <li><a class="dropdown-item" href="{{ url_for('admin.admin_profiles') }}">学生档案审核</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="{{ url_for('super_admin.theme_settings') }}">站点设置</a></li>
+                    <li><a class="dropdown-item" href="{{ url_for('super_admin.manage_notices') }}">通知管理</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="{{ url_for('super_admin.super_admin_profile') }}">个人资料</a></li>
+                    <li><a class="dropdown-item" href="{{ url_for('super_admin.super_admin_account') }}">账户管理</a></li>
+                </ul>
+                </li>
+                {% endif %}
+            </ul>
+            <!-- 右侧用户信息 -->
+            <ul class="navbar-nav ms-auto">
+                {% if current_user.is_authenticated %}
+                <li class="nav-item">
+                <span class="navbar-text text-white me-3">
+                    👤 {{ current_user.username }}
+                    {% if current_user.email_verified %}
+                    <span class="badge bg-success ms-1">✓</span>
+                    {% else %}
+                    <span class="badge bg-warning ms-1">!</span>
+                    {% endif %}
+                    <span class="badge bg-light text-dark ms-1">
+                    {% if current_user.role == 'super_admin' %}超级管理员
+                    {% elif current_user.role == 'admin' %}
+                    {% if current_user.admin_profile and current_user.admin_profile.is_global %}
+                    业务管理员（全局）
+                    {% else %}
+                    业务管理员（普通）
+                    {% endif %}
+                    {% elif current_user.role == 'headteacher' %}班主任
+                    {% else %}学生
+                    {% endif %}
+                    </span>
+                </span>
+                </li>
+                <li class="nav-item" id="credentialBtn" style="display:none;">
+                    <a class="nav-link text-warning" href="#" onclick="showCredential();return false;" title="查看最近创建/重置的账户凭证">
+                        🔑 凭证
+                    </a>
+                </li>
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.logout') }}">退出登录</a></li>
+                {% else %}
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.login') }}">登录</a></li>
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.register') }}">学生注册</a></li>
+                {% endif %}
+            </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4 pt-3">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, msg in messages %}
+                <div class="alert alert-{{ 'danger' if category == 'danger' else 'success' }} alert-dismissible fade show" role="alert">
+                    {{ msg }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="关闭"></button>
+                </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- 凭证查看模态框 -->
+    <div class="modal fade" id="credentialModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-warning">
+                    <h5 class="modal-title">🔑 最近账户凭证</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
+                </div>
+                <div class="modal-body" id="credentialBody">
+                    <p class="text-muted">加载中...</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" onclick="copyCredential()">📋 一键复制</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='lib/bootstrap/5.3.0/js/bootstrap.bundle.min.js') }}"></script>
+    <script>
+    // CSRF Token 自动注入：为所有 POST 表单添加 CSRF token
+    (function() {
+        var csrfToken = '{{ csrf_token }}';
+        // 为所有表单注入隐藏的 CSRF input
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('form[method="POST"], form:not([method])').forEach(function(form) {
+                if (!form.querySelector('input[name="csrf_token"]')) {
+                    var input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = 'csrf_token';
+                    input.value = csrfToken;
+                    form.appendChild(input);
+                }
+            });
+        });
+        // 为所有 fetch/XHR 请求自动添加 CSRF header
+        var origFetch = window.fetch;
+        window.fetch = function() {
+            var args = Array.prototype.slice.call(arguments);
+            if (args[1] && args[1].method && args[1].method.toUpperCase() !== 'GET') {
+                args[1] = args[1] || {};
+                args[1].headers = args[1].headers || {};
+                args[1].headers['X-CSRF-Token'] = csrfToken;
+            }
+            return origFetch.apply(this, args);
+        };
+    })();
+    
+    // 凭证暂存功能：页面加载时检测是否有暂存凭证
+    var lastCredData = null;
+    document.addEventListener('DOMContentLoaded', function() {
+        fetch('/api/last_credential')
+            .then(function(r) { return r.json(); })
+            .then(function(res) {
+                if (res.status === 'ok' && res.data) {
+                    lastCredData = res.data;
+                    var btn = document.getElementById('credentialBtn');
+                    if (btn) btn.style.display = '';
+                }
+            })
+            .catch(function() { /* 静默失败 */ });
+    });
+    
+    function showCredential() {
+        if (!lastCredData) {
+            fetch('/api/last_credential')
+                .then(function(r) { return r.json(); })
+                .then(function(res) {
+                    if (res.status === 'ok' && res.data) {
+                        lastCredData = res.data;
+                        renderCredential();
+                    } else {
+                        alert('暂无暂存凭证');
+                    }
+                });
+            return;
+        }
+        renderCredential();
+    }
+    
+    function renderCredential() {
+        var d = lastCredData;
+        var html = '<table class="table table-bordered table-sm">' +
+            '<tr><td style="width:80px;">操作</td><td><strong>' + d.action + d.role + '</strong></td></tr>' +
+            '<tr><td>姓名</td><td>' + d.name + '</td></tr>' +
+            '<tr><td>用户名</td><td><code>' + d.username + '</code></td></tr>' +
+            '<tr><td>密码</td><td><code style="font-size:1.2em;user-select:all;">' + d.password + '</code></td></tr>' +
+            '<tr><td>时间</td><td class="text-muted">' + d.time + '</td></tr>' +
+            '</table>' +
+            '<p class="text-muted small mb-0">💡 点击密码可全选复制；也可点击底部「一键复制」按钮。</p>';
+        document.getElementById('credentialBody').innerHTML = html;
+        var modal = new bootstrap.Modal(document.getElementById('credentialModal'));
+        modal.show();
+    }
+    
+    function copyCredential() {
+        if (!lastCredData) return;
+        var text = '姓名：' + lastCredData.name + '\n' +
+                   '角色：' + lastCredData.role + '\n' +
+                   '用户名：' + lastCredData.username + '\n' +
+                   '密码：' + lastCredData.password + '\n' +
+                   '时间：' + lastCredData.time;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(function() {
+                alert('凭证已复制到剪贴板！');
+            });
+        } else {
+            var ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed';
+            ta.style.left = '-9999px';
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+            alert('凭证已复制到剪贴板！');
+        }
+    }
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}{{ super() }} - 更换全局管理员{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+<div class="col-lg-6">
+<h2>更换全局管理员</h2>
+<hr>
+<div class="alert alert-info">
+当前全局管理员为：<strong>{{ current_global.name }}</strong>（用户名：{{ current_global.user.username }}）
+</div>
+<form method="post">
+<div class="mb-3">
+<label class="form-label">新任全局管理员姓名</label>
+<input type="text" name="name" class="form-control" required>
+</div>
+<div class="mb-3">
+<label class="form-label">新任身份证号</label>
+<input type="text" name="id_number" class="form-control" required maxlength="18">
+</div>
+<div class="mb-3">
+<label class="form-label">新任邮箱</label>
+<input type="email" name="email" class="form-control" required>
+</div>
+<div class="alert alert-warning">
+⚠️ 更换后：<br>
+1. 原全局管理员账号将被锁定，不可再登录<br>
+2. 新任管理员沿用原用户名，密码重置为 <strong>gzky123456</strong><br>
+3. 原全局管理员的档案信息将被清除
+</div>
+<div class="d-grid gap-2 d-md-flex justify-content-md-end">
+<a href="{{ url_for('super_admin.super_admin_dashboard') }}" class="btn btn-secondary me-md-2">取消</a>
+<button type="submit" class="btn btn-danger">确认更换</button>
+</div>
+</form>
+</div>
+</div>
+{% endblock %}

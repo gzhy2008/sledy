@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}主题设置 - {{ super() }}{% endblock %}
+{% block content %}
+<h2>🎨 站点设置</h2>
+<p class="text-muted">修改后全站即时生效，留空则恢复默认值。</p>
+
+<div class="row">
+    <div class="col-md-6">
+        <form method="post" enctype="multipart/form-data">
+            <h5>基本信息</h5>
+            <div class="mb-3">
+                <label class="form-label">站点标题</label>
+                <input type="text" name="site_title" value="{{ site_title }}" class="form-control" placeholder="技能认定资料收集系统">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">站点副标题</label>
+                <input type="text" name="site_subtitle" value="{{ site_subtitle }}" class="form-control" placeholder="一站式技能认定报名、档案审核、批次管理平台">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">站点 Logo（替换默认 📋 图标）</label>
+                <input type="file" name="site_logo" class="form-control" accept=".png,.jpg,.jpeg,.ico">
+                {% if site_logo %}
+                <div class="mt-2">
+                    <img src="{{ url_for('uploaded_file', filename=site_logo) }}" height="32" alt="">
+                    <small class="text-muted ms-2">当前 Logo</small>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">超管邮箱（用于系统邮件发送）</label>
+                <input type="email" name="sa_email" value="{{ sa_email }}" class="form-control" placeholder="admin@example.com">
+            </div>
+
+            <h5 class="mt-4">主题配色</h5>
+            <div class="mb-3">
+                <label class="form-label">主色调</label>
+                <div class="input-group">
+                    <input type="color" name="primary" value="{{ primary }}" class="form-control form-control-color" style="height:38px;">
+                    <input type="text" value="{{ primary }}" class="form-control" readonly>
+                </div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">辅色调</label>
+                <div class="input-group">
+                    <input type="color" name="secondary" value="{{ secondary }}" class="form-control form-control-color" style="height:38px;">
+                    <input type="text" value="{{ secondary }}" class="form-control" readonly>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary">保存全部</button>
+            <a href="{{ url_for('super_admin.super_admin_dashboard') }}" class="btn btn-secondary ms-2">返回</a>
+        </form>
+    </div>
+    <div class="col-md-6">
+        <div class="card mb-3">
+            <div class="card-header">导航栏预览</div>
+            <div class="card-body">
+                <div style="background: linear-gradient(135deg, {{ primary }}, {{ secondary }}); padding: 12px; border-radius: 8px; color: #fff;">
+                    {% if site_logo %}
+                    <img src="{{ url_for('uploaded_file', filename=site_logo) }}" height="24" class="me-1" alt="">
+                    {% else %}
+                    📋
+                    {% endif %}
+                    <strong>{{ site_title or '技能认定资料收集系统' }}</strong>
+                </div>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header">首页背景预览</div>
+            <div class="card-body">
+                <div style="background: linear-gradient(135deg, {{ primary }}, {{ secondary }}); height: 120px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #fff;">
+                    <div class="text-center">
+                        <strong>{{ site_title or '技能认定资料收集系统' }}</strong>
+                        <div class="small opacity-75">{{ site_subtitle or '一站式技能认定报名、档案审核、批次管理平台' }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

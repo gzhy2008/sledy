@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}{{ super() }} - 资料导出{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-center align-items-start min-vh-100 bg-white p-3">
+    <div class="w-100" style="max-width: 600px;">
+        <!-- 标题 -->
+        <h2 class="text-center mb-4">📦 资料导出</h2>
+
+        <!-- 搜索框 -->
+        <div class="mb-3">
+            <label class="form-label fw-bold">选择要导出的批次</label>
+            <div class="input-group">
+                <input type="text" id="batchExportInput" class="form-control" placeholder="输入关键词搜索">
+                <button type="button" class="btn btn-outline-secondary" onclick="searchBatch()">搜索</button>
+            </div>
+            <div id="exportResultList" class="mt-2" style="display:none;">
+                <select id="exportSelect" class="form-select" size="6" onchange="selectBatch()">
+                </select>
+            </div>
+        </div>
+
+        <!-- 导出按钮 -->
+        <button type="button" class="btn btn-success w-100 mb-2" onclick="exportSelectedBatch()">
+            📦 打包下载
+        </button>
+        <small class="text-muted d-block text-center mb-4">
+            仅导出状态为“approved”的学生资料，按身份证号分文件夹打包。
+        </small>
+
+        <!-- 装饰图标（与打包主题相关） -->
+        <div class="text-center mt-3">
+            <i class="fas fa-boxes fa-5x text-secondary" style="opacity: 0.7;"></i>
+            <p class="text-muted mt-2">一键打包，轻松归档</p>
+            <!-- 若您希望使用图片，可替换为以下代码（取消注释并注释上方） -->
+            <!--
+            <img src="{{ url_for('static', filename='images/export_illustration.png') }}"
+                 alt="打包示意" class="img-fluid" style="max-height: 150px; opacity: 0.8;">
+            <p class="text-muted mt-2">一键打包，轻松归档</p>
+            -->
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    var allBatches = {{ batches | tojson | safe }};
+
+    function searchBatch() {
+        var keyword = document.getElementById('batchExportInput').value.trim();
+        if (keyword.length < 1) {
+            alert('请输入关键词');
+            return;
+        }
+        var results = allBatches.filter(function(b) {
+            return b.batch_name.includes(keyword) || (b.skill_name && b.skill_name.includes(keyword));
+        });
+        var select = document.getElementById('exportSelect');
+        var resultDiv = document.getElementById('exportResultList');
+        select.innerHTML = '';
+        if (results.length === 0) {
+            resultDiv.style.display = 'none';
+            alert('未找到匹配的批次');
+            return;
+        }
+        results.forEach(function(b) {
+            var opt = document.createElement('option');
+            opt.value = b.batch_name;
+            opt.textContent = b.batch_name + b.display_title ;
+            select.appendChild(opt);
+        });
+        resultDiv.style.display = 'block';
+    }
+
+    function selectBatch() {
+        var select = document.getElementById('exportSelect');
+        var selectedValue = select.value;
+        if (selectedValue) {
+            document.getElementById('batchExportInput').value = selectedValue;
+            document.getElementById('exportResultList').style.display = 'none';
+        }
+    }
+    function exportSelectedBatch() {
+        var batchName = document.getElementById('batchExportInput').value.trim();
+        if (!batchName) {
+            alert('请先搜索并选择一个批次');
+            return;
+        }
+        // 检查批次是否在已加载的列表中
+        var found = allBatches.some(function(b) { return b.batch_name === batchName; });
+        if (!found) {
+            if (confirm('批次 ' + batchName + ' 不存在。是否前往批次管理页面查看可用批次？')) {
+                window.location.href = '/admin/batches';
+            }
+            return;
+        }
+        window.location.href = '/admin/export/' + encodeURIComponent(batchName);
+    }
+
+</script>
+{% endblock %}

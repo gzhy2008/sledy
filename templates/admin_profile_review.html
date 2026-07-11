@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% block title %}档案审核 - {{ profile.name }}{% endblock %}
+{% block head %}
+<style>
+    .material-thumb {
+        height: 180px;
+        width: auto;
+        max-width: 100%;
+        object-fit: contain;
+        border-radius: 6px;
+    }
+    .file-placeholder {
+        width: 100%;
+        height: 180px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px dashed #ccc;
+        border-radius: 6px;
+        background-color: #f8f9fa;
+        color: #6c757d;
+    }
+</style>
+{% endblock %}
+{% block content %}
+<h2>档案审核：{{ profile.name }}</h2>
+
+<!-- 上部：基本信息 -->
+<div class="card mb-4">
+    <div class="card-header"><strong>基本信息</strong></div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-4"><p><strong>姓名：</strong>{{ profile.name }}</p></div>
+            <div class="col-md-4"><p><strong>身份证号：</strong>{{ profile.id_number if profile.status == 'pending' else profile.id_number[:14] + '****' }}</p></div>
+            <div class="col-md-4"><p><strong>手机号：</strong>{{ profile.phone or '未填写' }}</p></div>
+            <div class="col-md-4"><p><strong>班级：</strong>{{ profile.class_group.name if profile.class_group else '未分配' }}</p></div>
+            <div class="col-md-4"><p><strong>系部：</strong>{{ profile.department_name or '未分配' }}</p></div>
+            <div class="col-md-4"><p><strong>状态：</strong>
+                <span class="badge bg-{{ 'success' if profile.status=='approved' else 'warning' }}">{{ profile.status }}</span>
+                {% if profile.reject_reason %}<small class="text-danger">（{{ profile.reject_reason }}）</small>{% endif %}
+            </p></div>
+        </div>
+    </div>
+</div>
+
+<!-- 下部：材料展示 -->
+<div class="card mb-4">
+    <div class="card-header"><strong>证件材料</strong></div>
+    <div class="card-body">
+        <div class="row text-center">
+            <!-- 证件照 -->
+            <div class="col-md-3 mb-3">
+                <p class="fw-bold">证件照</p>
+                {% if photo_url %}
+                <a href="{{ photo_url }}" target="_blank">
+                    <img src="{{ photo_url }}" class="img-thumbnail material-thumb" alt="证件照">
+                </a>
+                {% else %}
+                <div class="file-placeholder text-muted">未上传</div>
+                {% endif %}
+            </div>
+            <!-- 学历证明 -->
+            <div class="col-md-3 mb-3">
+                <p class="fw-bold">学历证明</p>
+                {% if edu_url %}
+                    {% if edu_url.lower().endswith(('.jpg','.jpeg','.png','.gif','.bmp')) %}
+                    <a href="{{ edu_url }}" target="_blank">
+                        <img src="{{ edu_url }}" class="img-thumbnail material-thumb" alt="学历证明">
+                    </a>
+                    {% else %}
+                    <div class="file-placeholder">
+                        <div>
+                            <i class="fas fa-file-pdf" style="font-size: 2rem;"></i><br>
+                            <a href="{{ edu_url }}" target="_blank">下载文件</a>
+                        </div>
+                    </div>
+                    {% endif %}
+                {% else %}
+                <div class="file-placeholder text-muted">未上传</div>
+                {% endif %}
+            </div>
+            <!-- 身份证人像面 -->
+            <div class="col-md-3 mb-3">
+                <p class="fw-bold">身份证人像面</p>
+                {% if id_card_front_url %}
+                <a href="{{ id_card_front_url }}" target="_blank">
+                    <img src="{{ id_card_front_url }}" class="img-thumbnail material-thumb" alt="身份证人像面">
+                </a>
+                {% else %}
+                <div class="file-placeholder text-muted">未上传</div>
+                {% endif %}
+            </div>
+            <!-- 身份证国徽面 -->
+            <div class="col-md-3 mb-3">
+                <p class="fw-bold">身份证国徽面</p>
+                {% if id_card_back_url %}
+                <a href="{{ id_card_back_url }}" target="_blank">
+                    <img src="{{ id_card_back_url }}" class="img-thumbnail material-thumb" alt="身份证国徽面">
+                </a>
+                {% else %}
+                <div class="file-placeholder text-muted">未上传</div>
+                {% endif %}
+            </div>
+            <!-- 其他资料 -->
+            <div class="col-md-3 mb-3">
+                <p class="fw-bold">其他资料</p>
+                {% if other_file_url %}
+                <div class="file-placeholder">
+                    <div>
+                        <i class="fas fa-file-archive" style="font-size: 2rem;"></i><br>
+                        <a href="{{ other_file_url }}" target="_blank">下载文件</a>
+                    </div>
+                </div>
+                {% else %}
+                <div class="file-placeholder text-muted">未上传</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if current_user.role == 'headteacher' and profile.status == 'pending' %}
+<div class="mt-3">
+    <form method="post" action="{{ url_for('admin.approve_profile', profile_id=profile.id) }}" style="display:inline;">
+        <button type="submit" name="action" value="approve" class="btn btn-success btn-lg">✅ 通过</button>
+    </form>
+    <button class="btn btn-danger btn-lg" data-bs-toggle="modal" data-bs-target="#rejectModal">❌ 拒绝</button>
+    <a href="{{ url_for('teacher.teacher_profiles') }}" class="btn btn-secondary btn-lg ms-2">← 返回</a>
+</div>
+<!-- 拒绝原因模态框 -->
+<div class="modal fade" id="rejectModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{{ url_for('admin.approve_profile', profile_id=profile.id) }}">
+                <input type="hidden" name="action" value="reject">
+                <div class="modal-header">
+                    <h5 class="modal-title">填写拒绝原因</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <textarea name="reason" class="form-control" rows="3" required minlength="5" maxlength="20" placeholder="请输入5-20字原因"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-danger">确认拒绝</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% elif profile.status != 'pending' %}
+<div class="alert alert-info">该档案已审核完毕，状态：{{ profile.status }}</div>
+<a href="{{ url_for('teacher.teacher_profiles') }}" class="btn btn-secondary">← 返回档案列表</a>
+{% else %}
+<div class="alert alert-info">您没有审核权限</div>
+{% if current_user.role == 'headteacher' %}
+<a href="{{ url_for('teacher.teacher_profiles') }}" class="btn btn-secondary">← 返回档案列表</a>
+{% elif current_user.role in ['admin', 'super_admin'] %}
+<a href="{{ url_for('admin.admin_profiles') }}" class="btn btn-secondary">← 返回档案列表</a>
+{% endif %}
+{% endif %}
+{% endblock %}

@@ -1,0 +1,354 @@
+{% extends "base.html" %}
+{% block title %}{{ super() }} - 用户管理{% endblock %}
+{% block content %}
+<h2>用户管理</h2>
+<div class="mb-3 d-flex align-items-center">
+  <a href="{{ url_for('super_admin.create_admin') }}" class="btn btn-primary me-2">创建业务管理员</a>
+  <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#updateIdModal">
+    修改身份证号（极端情况下使用）
+  </button>
+  {% if current_role == 'admin' %}
+    <a href="{{ url_for('super_admin.replace_global_admin') }}" class="btn btn-purple ms-2">更换全局管理员</a>
+  {% endif %}
+</div>
+<!-- 角色选项卡 -->
+<div class="status-tabs mb-3">
+    <a href="{{ url_for('super_admin.super_admin_dashboard', role='admin') }}"
+       class="btn btn-sm {{ 'btn-primary' if current_role == 'admin' else 'btn-outline-primary' }}">业务管理员</a>
+    <a href="{{ url_for('super_admin.super_admin_dashboard', role='headteacher') }}"
+       class="btn btn-sm {{ 'btn-info' if current_role == 'headteacher' else 'btn-outline-info' }}">班主任</a>
+    <a href="{{ url_for('super_admin.super_admin_dashboard', role='student') }}"
+       class="btn btn-sm {{ 'btn-success' if current_role == 'student' else 'btn-outline-success' }}">学生</a>
+    <a href="{{ url_for('super_admin.super_admin_dashboard', role='super_admin') }}"
+       class="btn btn-sm {{ 'btn-purple' if current_role == 'super_admin' else 'btn-outline-purple' }}">超级管理员</a>
+    <a href="{{ url_for('super_admin.super_admin_dashboard', role='all') }}"
+       class="btn btn-sm {{ 'btn-secondary' if current_role == 'all' else 'btn-outline-secondary' }}">全部</a>
+</div>
+
+<!-- 搜索框 -->
+<form method="get" class="d-flex align-items-center mb-3">
+    <input type="hidden" name="role" value="{{ current_role }}">
+    <input type="text" name="search" class="form-control me-2" style="max-width: 320px;"
+           placeholder="按用户名至少输入2个字符进行搜索" value="{{ search or '' }}">
+    <button type="submit" class="btn btn-outline-secondary flex-shrink-0">搜索</button>
+</form>
+
+{% if is_search %}
+<p class="text-muted">搜索结果：共 {{ total }} 条记录，当前第 {{ page }}/{{ total_pages }} 页</p>
+{% else %}
+<p class="text-muted">显示最新 50 条记录（点击选项卡或搜索查看更多）</p>
+{% endif %}
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>用户名</th>
+            <th>姓名</th>
+            <th>角色</th>
+            <th>管辖</th>
+            <th>状态</th>
+            <th>操作</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for u in users %}
+        <tr>
+            <td>{{ u.username }}</td>
+	    <td>
+            {% if u.role == 'student' and u.profile %}
+                {{ u.profile.name }}
+            {% elif u.role == 'admin' and u.admin_profile %}
+                {{ u.admin_profile.name }}
+            {% elif u.role == 'headteacher' and u.head_teacher %}
+                {{ u.head_teacher.name }}
+            {% elif u.role == 'super_admin' %}
+                超级管理员
+            {% else %}
+                -
+            {% endif %}
+        </td>
+        <td>
+        {% if u.role == 'super_admin' %}
+            <span class="badge bg-danger">超级管理员</span>
+        {% elif u.role == 'admin' %}
+            {% if u.admin_profile and u.admin_profile.is_global %}
+                <span class="badge bg-success">业务管理员（全局）</span>
+            {% elif u.admin_profile and not u.admin_profile.is_global %}
+                <span class="badge bg-primary">业务管理员（普通）</span>
+            {% else %}
+                <span class="badge bg-primary">业务管理员</span>
+            {% endif %}
+        {% elif u.role == 'headteacher' %}
+            <span class="badge bg-info">班主任</span>
+        {% elif u.role == 'student' %}
+            <span class="badge bg-secondary">学生</span>
+        {% endif %}
+        </td>
+        <td>
+        {% if u.role == 'admin' and u.admin_profile and not u.admin_profile.is_global %}
+            <small class="text-muted" style="font-size:0.75em;">
+                {% for d in u.admin_profile.departments %}{{ d.name }}{% if not loop.last %}<br>{% endif %}{% else %}无{% endfor %}
+            </small>
+        {% elif u.role == 'headteacher' and u.head_teacher %}
+            <small class="text-muted" style="font-size:0.75em;">
+                {% for d in u.head_teacher.departments %}{{ d.name }}{% if not loop.last %}<br>{% endif %}{% else %}无{% endfor %}
+            </small>
+        {% else %}
+            <span class="text-muted" style="font-size:0.75em;">-</span>
+        {% endif %}
+        </td>
+        <td>
+            {% if u.is_active %}
+            <span class="badge bg-success">正常</span>
+            {% else %}
+            <span class="badge bg-danger">已锁定</span>
+            {% endif %}
+        </td>
+        <td>
+            {% if u.id != current_user.id %}
+                <div class="btn-group" style="position: static;">
+                    <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                    ···
+                    </button>
+                    <ul class="dropdown-menu" style="z-index: 1050;">
+                        <li>
+                            <a class="dropdown-item" href="{{ url_for('super_admin.toggle_user', user_id=u.id) }}">{{ '锁定' if u.is_active else '解锁' }}</a>
+                        </li>
+                        {% if u.is_active %}
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('super_admin.reset_password', user_id=u.id) }}" onclick="return confirm('确认重置密码？')">重置密码</a>
+                            </li>
+                            {% if u.role == 'admin' and u.admin_profile %}
+                            <li>
+                                <form method="post" action="{{ url_for('super_admin.reset_admin_email', user_id=u.id) }}">
+                                <button type="submit" class="dropdown-item" onclick="return confirm('确认重置该业务管理员的邮箱验证状态？')">重置邮箱验证</button>
+                                </form>
+                            </li>
+                            {% endif %}
+                            {% if u.verification_attempts > 0 %}
+                                <li>
+                                    <form method="post" action="{{ url_for('admin.reset_verification_attempts', user_id=u.id) }}">
+                                    <button type="submit" class="dropdown-item" onclick="return confirm('确认重置验证码错误计数？')">重置验证计数 ({{ u.verification_attempts }}/3)</button>
+                                    </form>
+                                </li>
+                            {% endif %}
+                        {% set email_ok = u.email_verified %}
+                        {% if u.role in ['admin', 'headteacher'] and u.email and not email_ok %}
+                            <li>
+                                <form method="post" action="{{ url_for('super_admin.super_admin_verify_email', user_id=u.id) }}">
+                                <button type="submit" class="dropdown-item" onclick="return confirm('确认手动验证该用户邮箱？')">手动验证邮箱</button>
+                                </form>
+                            </li>
+                        {% endif %}
+                            <li>
+                                <button type="button" class="dropdown-item" 
+                                        data-bs-toggle="modal" data-bs-target="#changeEmailModal"
+                                        data-user-id="{{ u.id }}"
+                                        data-current-email="{{ u.email or '未填写' }}">修改邮箱</button>
+                            </li>
+                        {% if u.role == 'admin' and not u.admin_profile.is_global %}
+                            <li>
+                                <button type="button" class="dropdown-item"
+                                        data-bs-toggle="modal" data-bs-target="#editDeptModal"
+                                        data-user-id="{{ u.id }}"
+                                        data-current-depts="{% for d in u.admin_profile.departments %}{{ d.id }}{% if not loop.last %},{% endif %}{% endfor %}">修改管辖系部</button>
+                            </li>
+                        {% endif %}
+                        {% if u.role == 'admin' and u.admin_profile and not u.admin_profile.is_global and u.is_active %}
+                            <li>
+                                <form method="post" action="{{ url_for('super_admin.upgrade_to_global_admin', admin_id=u.admin_profile.id) }}" style="display:inline;">
+                                <button type="submit" class="dropdown-item" onclick="return confirm('确认将 {{ u.admin_profile.name }} 升级为全局管理员？\n\n原全局管理员将被锁定。')">升级为全局管理员</button>
+                                </form>
+                            </li>
+                        {% endif %}
+                        {% if u.role == 'admin' and u.admin_profile and u.admin_profile.is_global and u.is_active %}
+                            <li>
+                            <form method="post" action="{{ url_for('super_admin.downgrade_from_global', admin_id=u.admin_profile.id) }}" style="display:inline;">
+                                <button type="submit" class="dropdown-item" onclick="return confirm('确认将 {{ u.admin_profile.name }} 降级为普通管理员？')">降级为普通管理员</button>
+                            </form>
+                            </li>
+                        {% endif %}
+                    {% endif %}
+                    </ul>
+                </div>
+                {% else %}
+                <span class="text-muted">当前用户</span>
+            {% endif %}
+        </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+{% if is_search and total_pages > 1 %}
+<nav>
+    <ul class="pagination">
+        <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+            <a class="page-link" href="{{ url_for('super_admin.super_admin_dashboard', role=current_role, search=search, page=page-1) }}">« 上一页</a>
+        </li>
+        {% for p in range(1, total_pages + 1) %}
+        <li class="page-item {% if p == page %}active{% endif %}">
+            <a class="page-link" href="{{ url_for('super_admin.super_admin_dashboard', role=current_role, search=search, page=p) }}">{{ p }}</a>
+        </li>
+        {% endfor %}
+        <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+            <a class="page-link" href="{{ url_for('super_admin.super_admin_dashboard', role=current_role, search=search, page=page+1) }}">下一页 »</a>
+        </li>
+    </ul>
+</nav>
+{% endif %}
+
+<!-- 修改身份证号模态框 -->
+<div class="modal fade" id="updateIdModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">修改身份证号（极端情况）</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">搜索用户</label>
+          <div class="input-group">
+            <input type="text" id="searchKeyword" class="form-control" placeholder="姓名/用户名/手机号">
+            <button class="btn btn-outline-secondary" onclick="searchUsers()">搜索</button>
+          </div>
+        </div>
+        <div id="searchResults" class="list-group mb-3" style="max-height:200px;overflow-y:auto;"></div>
+        <form id="updateIdForm" method="post" action="{{ url_for('super_admin.super_admin_update_id_number') }}">
+          <input type="hidden" name="user_id" id="selectedUserId">
+          <div class="mb-3">
+            <label class="form-label">新身份证号</label>
+            <input type="text" name="new_id_number" id="newIdNumber" class="form-control" required maxlength="18">
+          </div>
+          <div class="alert alert-danger">
+            ⚠️ 此操作仅限极端情况使用，请确认已仔细核对。
+          </div>
+          <button type="submit" class="btn btn-danger">确认修改</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 修改邮箱模态框 -->
+<div class="modal fade" id="changeEmailModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="changeEmailForm" method="post">
+        <input type="hidden" name="user_id" id="emailUserId">
+        <div class="modal-header">
+          <h5 class="modal-title">修改用户邮箱</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <p><strong>当前邮箱：</strong><span id="currentEmailDisplay"></span></p>
+          <div class="mb-3">
+            <label for="newEmailInput" class="form-label">新邮箱</label>
+            <input type="email" name="new_email" id="newEmailInput" class="form-control" required>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+          <button type="submit" class="btn btn-primary">保存</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- 修改管辖系部模态框 -->
+<div class="modal fade" id="editDeptModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="editDeptForm" method="post" action="{{ url_for('super_admin.update_admin_departments') }}">
+        <input type="hidden" name="user_id" id="deptUserId">
+        <div class="modal-header">
+          <h5 class="modal-title">修改管辖系部</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">管辖系部（可多选）</label>
+            <select name="department_ids" id="editDeptSelect" multiple class="form-select" size="5">
+              {% for d in all_departments %}
+              <option value="{{ d.id }}">{{ d.name }}</option>
+              {% endfor %}
+            </select>
+            <small class="text-muted">
+                按住 Ctrl 多选 | 至少选择 <strong>1</strong> 个，最多选择 <strong>{{ (all_departments|length) - 1 }}</strong> 个（共 {{ all_departments|length }} 个系部）
+            </small>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+          <button type="submit" class="btn btn-primary">保存</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function searchUsers() {
+    var keyword = document.getElementById('searchKeyword').value.trim();
+    if (!keyword) return;
+    fetch('/super_admin/search_users?keyword=' + encodeURIComponent(keyword))
+        .then(res => res.json())
+        .then(data => {
+            var html = '';
+            data.forEach(user => {
+                html += '<a href="#" class="list-group-item list-group-item-action" onclick="selectUser(' + user.user_id + ', \'' + (user.id_number || '') + '\')">' +
+                    user.name + ' (' + user.username + ') - 角色: ' + user.role + ' - 当前身份证号: ' + (user.id_number || '无') + '</a>';
+            });
+            document.getElementById('searchResults').innerHTML = html || '<div class="list-group-item text-muted">无匹配结果</div>';
+        });
+}
+
+function selectUser(userId, currentIdNumber) {
+    document.getElementById('selectedUserId').value = userId;
+    document.getElementById('searchResults').innerHTML = '<div class="list-group-item list-group-item-success">已选择用户ID: ' + userId + '，当前身份证号: ' + currentIdNumber + '</div>';
+    document.getElementById('searchKeyword').value = '';
+}
+
+// 修改管辖系部模态框
+var editDeptModal = document.getElementById('editDeptModal');
+if (editDeptModal) {
+    editDeptModal.addEventListener('show.bs.modal', function(event) {
+        var button = event.relatedTarget;
+        var userId = button.getAttribute('data-user-id');
+        var currentDepts = button.getAttribute('data-current-depts').split(',').filter(Boolean);
+
+        // 设置隐藏的 user_id
+        document.getElementById('deptUserId').value = userId;
+
+        // 勾选已有系部
+        var select = document.getElementById('editDeptSelect');
+        for (var i = 0; i < select.options.length; i++) {
+            select.options[i].selected = false;
+        }
+        currentDepts.forEach(function(deptId) {
+            var option = select.querySelector('option[value="' + deptId + '"]');
+            if (option) option.selected = true;
+        });
+    });
+}
+
+var changeEmailModal = document.getElementById('changeEmailModal');
+if (changeEmailModal) {
+  changeEmailModal.addEventListener('show.bs.modal', function(event) {
+    var button = event.relatedTarget;
+    var userId = button.getAttribute('data-user-id');
+    var currentEmail = button.getAttribute('data-current-email');
+    document.getElementById('emailUserId').value = userId;
+    document.getElementById('currentEmailDisplay').textContent = currentEmail;
+    document.getElementById('newEmailInput').value = '';
+    var form = document.getElementById('changeEmailForm');
+    form.action = '/super_admin/update_email/' + userId;
+  });
+}
+
+</script>
+{% endblock %}

@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}{{ super() }} - 账户管理{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-6">
+        <h2>账户管理</h2>
+        <hr>
+
+        <!-- 邮箱信息卡片 -->
+        <div class="card mb-3">
+            <div class="card-header"><strong>邮箱信息</strong></div>
+            <div class="card-body">
+                <p><strong>当前邮箱：</strong>{{ current_user.email or '未设置' }}</p>
+                <p><strong>验证状态：</strong>
+                    {% if current_user.email_verified %}
+                        <span class="badge bg-success">已验证</span>
+                    {% else %}
+                        <span class="badge bg-warning">未验证</span>
+                    {% endif %}
+                </p>
+
+                <!-- 修改邮箱区域 -->
+                <div id="changeEmailArea">
+                    <div class="input-group mb-2">
+                        <input type="email" id="newEmailInput" class="form-control" placeholder="新邮箱地址">
+                        <button type="button" class="btn btn-outline-primary" onclick="sendChangeEmailCode()">发送验证码</button>
+                    </div>
+                    <div class="input-group">
+                        <input type="text" id="changeEmailCodeInput" class="form-control" placeholder="验证码">
+                        <button type="button" class="btn btn-success" onclick="verifyChangeEmail()">验证并修改</button>
+                    </div>
+                    <div id="changeEmailMsg" class="small mt-1"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 修改密码 -->
+        <div class="card mb-3">
+            <div class="card-header"><strong>密码管理</strong></div>
+            <div class="card-body">
+                <p>如需修改密码，请在下方输入新密码。</p>
+                <form method="post" action="{{ url_for('admin.admin_profile') }}">
+                    <div class="mb-3">
+                        <label class="form-label">新密码（留空不修改）</label>
+                        <input type="password" name="password" class="form-control" placeholder="至少8位，需包含大小写字母和数字">
+                    </div>
+                    <button type="submit" class="btn btn-outline-primary">修改密码</button>
+                </form>
+            </div>
+        </div>
+
+        <a href="{{ url_for('admin.admin_dashboard') }}" class="btn btn-secondary">返回仪表盘</a>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// 邮箱修改相关函数（复用 student_account.html 中的逻辑）
+function sendChangeEmailCode() {
+    var newEmail = document.getElementById('newEmailInput').value.trim();
+    if (!newEmail || newEmail.indexOf('@') === -1) {
+        alert('请输入正确的邮箱地址');
+        return;
+    }
+    var btn = event.target;
+    btn.disabled = true; btn.innerText = '发送中...';
+    fetch('/send_verify_code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'email=' + encodeURIComponent(newEmail)
+    }).then(res => res.json()).then(data => {
+        if (data.status === 'success') {
+            alert('验证码已发送');
+            document.getElementById('changeEmailMsg').innerHTML = '<span class="text-success">验证码已发送至新邮箱</span>';
+        } else {
+            alert(data.msg || '发送失败');
+            document.getElementById('changeEmailMsg').innerHTML = '<span class="text-danger">' + (data.msg || '请求失败') + '</span>';
+        }
+        btn.disabled = false; btn.innerText = '发送验证码';
+    }).catch(err => {
+        alert('请求失败');
+        btn.disabled = false; btn.innerText = '发送验证码';
+    });
+}
+
+function verifyChangeEmail() {
+    var code = document.getElementById('changeEmailCodeInput').value.trim();
+    if (!code) {
+        alert('请输入验证码');
+        return;
+    }
+    var btn = event.target;
+    btn.disabled = true; btn.innerText = '验证中...';
+    fetch('/verify_email_code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'email=' + encodeURIComponent(document.getElementById('newEmailInput').value) + '&code=' + code
+    }).then(res => res.json()).then(data => {
+        if (data.status === 'success') {
+            alert('邮箱更换成功');
+            location.reload();
+        } else {
+            alert(data.msg || '验证失败');
+            document.getElementById('changeEmailMsg').innerHTML = '<span class="text-danger">' + (data.msg || '验证失败') + '</span>';
+        }
+        btn.disabled = false; btn.innerText = '验证并修改';
+    }).catch(err => {
+        alert('请求失败');
+        btn.disabled = false; btn.innerText = '验证并修改';
+    });
+}
+</script>
+{% endblock %}

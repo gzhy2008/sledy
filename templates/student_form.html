@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+{% block title %}{% if student %}编辑资料{% else %}填写资料{% endif %}{% endblock %}
+
+{% block head %}
+<!-- Cropper.js 样式 -->
+<link rel="stylesheet" href="{{ url_for('static', filename='lib/cropperjs/1.5.13/cropper.min.css') }}">
+<!-- 图片预览模块样式 -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/image_preview.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <h2>
+            {% if student %}编辑资料{% else %}填写资料{% endif %}
+            <small class="text-muted">（批次：{{ batch.batch_name }}）</small>
+        </h2>
+        <p class="mb-1"><strong>报考工种：</strong>{{ batch.skill.name if batch.skill else '未知' }} | <strong>等级：</strong>{{ batch.skill_level }}</p>
+        <p class="text-muted">
+            资料提交时间：{{ batch.start_time.strftime('%Y-%m-%d %H:%M') }} ~ {{ batch.end_time.strftime('%Y-%m-%d %H:%M') }}
+        </p>
+
+        {% if not editable %}
+        <div class="alert alert-info">
+            ⏰ 该批次资料提交已截止，当前只能查看，无法编辑或提交。
+        </div>
+        {% endif %}
+
+        <form method="post" enctype="multipart/form-data"
+              action="{{ url_for('student_form', batch_id=batch.id) }}"
+              id="studentForm" {% if not editable %}onsubmit="return false"{% endif %}>
+            <fieldset {% if not editable %}disabled{% endif %}>
+                <!-- 基本信息 -->
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="name" class="form-label">姓名 <span class="text-danger">*</span></label>
+                        <input type="text" name="name" id="name" class="form-control"
+                               value="{{ student.name if student else '' }}" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="id_number" class="form-label">身份证号 <span class="text-danger">*</span></label>
+                        <input type="text" name="id_number" id="id_number" class="form-control"
+                               value="{{ student.id_number if student else '' }}"
+                               required {% if student %}readonly{% endif %}
+                               placeholder="18位">
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="phone" class="form-label">手机号</label>
+                    <input type="text" name="phone" id="phone" class="form-control"
+                           value="{{ student.phone if student else '' }}">
+                </div>
+
+                <hr>
+                <h5>上传材料</h5>
+
+                <!-- 证件照（集成裁剪+预览） -->
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <label class="form-label">证件照 <span class="text-danger">*</span><br>
+                            <small class="text-danger">(295×413像素，JPG/PNG，≤200KB)</small>
+                        </label>
+                        {% if student and student.photo_path %}
+                        <div class="mb-1">
+                            <a href="{{ url_for('static', filename='uploads/' + student.photo_path) }}" target="_blank">查看已上传照片</a>
+                        </div>
+                        {% endif %}
+                        {% if editable %}
+                        <input type="file" id="photoInput" class="form-control" accept=".jpg,.jpeg,.png">
+                        <div class="photo-preview-container" id="photoPreviewContainer" style="display:none;">
+                            <img id="photoPreviewImg" src="" alt="预览" class="img-thumbnail" style="max-height:150px;">
+                            <p class="text-muted small mt-1" id="photoPreviewInfo"></p>
+                        </div>
+                        <div id="photoInputError" class="photo-error text-danger small mt-1"></div>
+                        {% endif %}
+                    </div>
+
+                    <!-- 学历证明 -->
+                    <div class="col-md-4">
+                        <label class="form-label">学历证明 <span class="text-danger">*</span><br>
+                            <small class="text-muted">(JPG/PNG/PDF，≤2MB)</small>
+                        </label>
+                        {% if student and student.edu_cert_path %}
+                        <div class="mb-1">
+                            <a href="{{ url_for('static', filename='uploads/' + student.edu_cert_path) }}" target="_blank">查看已上传文件</a>
+                        </div>
+                        {% endif %}
+                        {% if editable %}
+                        <input type="file" name="edu_cert" id="edu_cert" class="form-control"
+                               accept=".jpg,.jpeg,.png,.pdf">
+                        <div id="eduError" class="text-danger small mt-1"></div>
+                        {% endif %}
+                    </div>
+
+                    <!-- 工作证明 -->
+                    <div class="col-md-4">
+                        <label class="form-label">工作证明 <span class="text-danger">*</span><br>
+                            <small class="text-muted">(JPG/PNG/PDF，≤2MB)</small>
+                        </label>
+                        {% if student and student.work_cert_path %}
+                        <div class="mb-1">
+                            <a href="{{ url_for('static', filename='uploads/' + student.work_cert_path) }}" target="_blank">查看已上传文件</a>
+                        </div>
+                        {% endif %}
+                        {% if editable %}
+                        <input type="file" name="work_cert" id="work_cert" class="form-control"
+                               accept=".jpg,.jpeg,.png,.pdf">
+                        <div id="workError" class="text-danger small mt-1"></div>
+                        {% endif %}
+                    </div>
+                </div>
+            </fieldset>
+
+            <!-- 按钮组 -->
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                <a href="{{ url_for('student.student_dashboard') }}" class="btn btn-secondary me-md-2">返回</a>
+                {% if editable %}
+                <button type="submit" class="btn btn-primary btn-lg">提交资料</button>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Cropper.js 核心库 -->
+<script src="{{ url_for('static', filename='lib/cropperjs/1.5.13/cropper.min.js') }}"></script>
+<!-- 独立模块 -->
+<!-- <script src="{{ url_for('static', filename='js/image_cropper.js') }}"></script> -->
+<script src="{{ url_for('static', filename='js/image_preview.js') }}"></script>
+
+<script>
+    // ---------- 初始化裁剪模块 ----------
+    var cropper = imageCropper.init({
+       inputSelector: '#photoInput',
+        aspectRatio: 295 / 413,
+        outputWidth: 295,
+        outputHeight: 413,
+       maxFileSizeKB: 200,
+       onCropped: function(blob, info) {
+            // 裁剪完成后，用预览模块显示结果
+           var url = URL.createObjectURL(blob);
+           var previewImg = document.getElementById('photoPreviewImg');
+           var container = document.getElementById('photoPreviewContainer');
+           var infoSpan = document.getElementById('photoPreviewInfo');
+           if (previewImg) previewImg.src = url;
+           if (container) container.style.display = 'block';
+            if (infoSpan) infoSpan.textContent = '尺寸：' + info.width + '×' + info.height + ' | 大小：' + Math.round(info.size/1024) + 'KB';
+            document.getElementById('photoInputError').textContent = '';
+        },
+         onError: function(msg) {
+            document.getElementById('photoInputError').textContent = msg;
+            document.getElementById('photoPreviewContainer').style.display = 'none';
+        }
+    });
+
+    // ---------- 学历证明、工作证明大小校验 ----------
+    var eduValid = false;
+    var workValid = false;
+
+    document.getElementById('edu_cert').addEventListener('change', function(e) {
+        var file = e.target.files[0];
+        eduValid = false;
+        document.getElementById('eduError').textContent = '';
+        if (!file) return;
+        if (file.size > 2 * 1024 * 1024) {
+            document.getElementById('eduError').textContent = '文件大小超过2MB，请选择更小的文件';
+            this.value = '';
+        } else {
+            eduValid = true;
+        }
+    });
+
+    document.getElementById('work_cert').addEventListener('change', function(e) {
+        var file = e.target.files[0];
+        workValid = false;
+        document.getElementById('workError').textContent = '';
+        if (!file) return;
+        if (file.size > 2 * 1024 * 1024) {
+            document.getElementById('workError').textContent = '文件大小超过2MB，请选择更小的文件';
+            this.value = '';
+        } else {
+            workValid = true;
+        }
+    });
+
+    // ---------- 表单提交拦截 ----------
+    document.getElementById('studentForm').addEventListener('submit', function(e) {
+        var photoOk = (cropper.getCroppedBlob() !== null) || {{ 'true' if student and student.photo_path else 'false' }};
+        if (!photoOk) {
+            e.preventDefault();
+            document.getElementById('photoInputError').textContent = '请裁剪并确认证件照';
+            return;
+        }
+        if (!eduValid && !{{ 'true' if student and student.edu_cert_path else 'false' }}) {
+            e.preventDefault();
+            document.getElementById('eduError').textContent = '请上传学历证明';
+            return;
+        }
+        if (!workValid && !{{ 'true' if student and student.work_cert_path else 'false' }}) {
+            e.preventDefault();
+            document.getElementById('workError').textContent = '请上传工作证明';
+            return;
+        }
+    });
+</script>
+{% endblock %}

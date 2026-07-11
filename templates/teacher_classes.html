@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}{{ super() }} - 我的班级{% endblock %}
+{% block content %}
+<h2>我的班级</h2>
+<div class="mb-3">
+  <a href="{{ url_for('teacher.teacher_create_class') }}" class="btn btn-primary">+ 新建班级</a>
+  <a href="{{ url_for('teacher.teacher_transfer_reviews') }}" class="btn btn-outline-info ms-2">转班审核</a>
+</div>
+{% if classes %}
+<table class="table">
+  <thead>
+    <tr>
+      <th>班级名称</th>
+      <th>班级号</th>
+      <th>系部</th>
+      <th>已审/总数</th>
+      <th>操作</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for c in classes %}
+    <tr>
+      <td>
+        <a href="{{ url_for('teacher.teacher_profiles', class_id=c.id, status='all') }}"  title="点击查看 {{ c.name }} 班级全部学生">{{ c.name }}</a>
+        
+      </td>
+      <td>
+        {{ c.class_no }}
+      </td>
+      <td>{{ c.department.name if c.department else '-' }}</td>
+      <td>
+        {% set stats = class_stats.get(c.id, (0, 0)) %}
+        {{ stats[0] }}/{{ stats[1] }}
+      </td>
+      <td>
+        <a href="{{ url_for('teacher.teacher_profiles', class_id=c.id) }}" class="btn btn-sm btn-primary">审核学生档案</a>
+        <a href="{{ url_for('teacher.teacher_class_batches', class_id=c.id) }}" class="btn btn-sm btn-outline-info">关联批次</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="text-muted">您还没有负责任何班级。</p>
+{% endif %}
+{% endblock %}

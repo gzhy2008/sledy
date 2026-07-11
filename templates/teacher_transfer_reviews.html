@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}转班审核{% endblock %}
+{% block content %}
+<h2>转班审核</h2>
+
+<!-- 筛选区域 -->
+<div class="card mb-4">
+    <div class="card-body py-2">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-auto">
+                <label class="form-label">姓名搜索</label>
+            </div>
+            <div class="col-auto">
+                <input type="text" name="search" class="form-control" placeholder="输入学生姓名" value="{{ search or '' }}">
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-outline-secondary">搜索</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 记录统计 -->
+<p class="text-muted">共 {{ total }} 条转班申请</p>
+
+<!-- 转班申请列表 -->
+{% if profiles %}
+<table class="table">
+    <thead><tr><th>姓名</th><th>身份证号</th><th>原班级</th><th>申请转入</th><th>操作</th></tr></thead>
+    <tbody>
+        {% for p in profiles %}
+        <tr>
+            <td>{{ p.name }}</td>
+            <td>{{ p.id_number[:14] }}****</td>
+            <td>{{ p.class_group.name if p.class_group else '-' }}</td>
+            <td>
+                {% if p.transfer_class_id in teacher_class_ids %}
+                {{ p.transfer_class_group.name if p.transfer_class_group else '-' }}
+                {% else %}
+                <span class="text-muted">非本班</span>
+                {% endif %}
+            </td>
+            <td>
+                {% if p.transfer_class_id in teacher_class_ids %}
+                <form method="post" action="{{ url_for('teacher.handle_transfer', profile_id=p.id) }}" style="display:inline;">
+                    <input type="hidden" name="action" value="approve">
+                    <button type="submit" class="btn btn-sm btn-success">通过</button>
+                </form>
+                <form method="post" action="{{ url_for('teacher.handle_transfer', profile_id=p.id) }}" style="display:inline;">
+                    <input type="hidden" name="action" value="reject">
+                    <button type="submit" class="btn btn-sm btn-danger">拒绝</button>
+                </form>
+                {% else %}
+                <span class="text-muted">非本班转班申请</span>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="alert alert-info">无待处理的转班申请</div>
+{% endif %}
+
+<!-- 分页导航 -->
+{% if total > 0 and total_pages > 1 %}
+    <p class="text-muted">当前第 {{ page }}/{{ total_pages }} 页</p>
+    <nav>
+        <ul class="pagination">
+            <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+                <a class="page-link" href="{{ url_for('teacher.teacher_transfer_reviews', search=search, page=page-1) }}">« 上一页</a>
+            </li>
+            {% for p in range(1, total_pages + 1) %}
+            <li class="page-item {% if p == page %}active{% endif %}">
+                <a class="page-link" href="{{ url_for('teacher.teacher_transfer_reviews', search=search, page=p) }}">{{ p }}</a>
+            </li>
+            {% endfor %}
+            <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+                <a class="page-link" href="{{ url_for('teacher.teacher_transfer_reviews', search=search, page=page+1) }}">下一页 »</a>
+            </li>
+        </ul>
+    </nav>
+{% endif %}
+{% endblock %}

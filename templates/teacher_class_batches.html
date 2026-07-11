@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}{{ super() }} - {{ cls.name }} 批次列表{% endblock %}
+{% block content %}
+<h2>{{ cls.name }} 关联批次</h2>
+
+<!-- 状态选项卡 -->
+<ul class="nav nav-tabs mb-3">
+    <li class="nav-item">
+        <a class="nav-link {% if current_status == 'active' %}active{% endif %}" 
+           href="{{ url_for('teacher.teacher_class_batches', class_id=cls.id, status='active') }}">进行中</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if current_status == 'archived' %}active{% endif %}" 
+           href="{{ url_for('teacher.teacher_class_batches', class_id=cls.id, status='archived') }}">已归档</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if current_status == 'all' %}active{% endif %}" 
+           href="{{ url_for('teacher.teacher_class_batches', class_id=cls.id, status='all') }}">全部</a>
+    </li>
+</ul>
+
+{% if batches %}
+<table class="table">
+    <thead>
+        <tr><th>批次号</th><th>工种</th><th>等级</th><th>开始时间</th><th>结束时间</th><th>状态</th><th>操作</th></tr>
+    </thead>
+    <tbody>
+        {% for b in batches %}
+        <tr>
+            <td>{{ b.batch_name }}</td>
+            <td>{{ b.skill.name }}</td>
+            <td>{{ b.skill_level }}</td>
+            <td>{{ b.start_time.strftime('%Y-%m-%d %H:%M') }}</td>
+            <td>{{ b.end_time.strftime('%Y-%m-%d %H:%M') }}</td>
+            <td>
+                {% if b.is_locked %}
+                    <span class="badge bg-dark">已锁定</span>
+                {% elif b.is_archived %}
+                    <span class="badge bg-secondary">已归档</span>
+                {% elif b.end_time >= now %}
+                    <span class="badge bg-success">进行中</span>
+                {% else %}
+                    <span class="badge bg-warning">已截止</span>
+                {% endif %}
+            </td>
+            <td>
+                <a href="{{ url_for('admin.batch_reviews', batch_name=b.batch_name, class_id=cls.id) }}" class="btn btn-sm btn-primary">查看报名</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<!-- 分页导航 -->
+{% if total > 0 %}
+    <p class="text-muted">共 {{ total }} 条记录，当前第 {{ page }}/{{ total_pages }} 页</p>
+    {% if total_pages > 1 %}
+    <nav>
+        <ul class="pagination">
+            <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+                <a class="page-link" href="{{ url_for('teacher.teacher_class_batches', class_id=cls.id, status=current_status, page=page-1) }}">« 上一页</a>
+            </li>
+            {% for p in range(1, total_pages + 1) %}
+            <li class="page-item {% if p == page %}active{% endif %}">
+                <a class="page-link" href="{{ url_for('teacher.teacher_class_batches', class_id=cls.id, status=current_status, page=p) }}">{{ p }}</a>
+            </li>
+            {% endfor %}
+            <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+                <a class="page-link" href="{{ url_for('teacher.teacher_class_batches', class_id=cls.id, status=current_status, page=page+1) }}">下一页 »</a>
+            </li>
+        </ul>
+    </nav>
+    {% endif %}
+    {% else %}
+    <p class="text-muted">暂无关联批次</p>
+{% endif %}
+
+<a href="{{ url_for('teacher.teacher_classes') }}" class="btn btn-secondary mt-3">← 返回我的班级</a>
+{% endblock %}

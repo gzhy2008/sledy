@@ -1,0 +1,261 @@
+{% extends "base.html" %}
+{% block title %}{{ super() }} - 学生面板{% endblock %}
+{% block content %}
+<h2>欢迎，{{ current_user.username }}</h2>
+{% if not profile %}
+<div class="alert alert-warning">
+⚠️ 您尚未完善个人资料，请先填写后才能报名技能等级认定。
+<a href="{{ url_for('student.edit_profile') }}" class="btn btn-warning btn-sm ms-3">完善个人资料</a>
+</div>
+{% else %}
+<!-- 批次子选项卡 -->
+<ul class="nav nav-tabs mb-3" id="batchTabs" role="tablist">
+<li class="nav-item" role="presentation">
+<button class="nav-link active" id="open-tab" data-bs-toggle="tab" data-bs-target="#open" type="button" role="tab" aria-controls="open" aria-selected="true">可报名的认定批次</button>
+</li>
+<li class="nav-item" role="presentation">
+<button class="nav-link" id="expired-tab" data-bs-toggle="tab" data-bs-target="#expired" type="button" role="tab" aria-controls="expired" aria-selected="false">已截止/已锁定</button>
+</li>
+<li class="nav-item" role="presentation">
+<button class="nav-link" id="profile-tab" data-bs-toggle="tab" data-bs-target="#profile" type="button" role="tab" aria-controls="profile" aria-selected="false">个人档案</button>
+</li>
+</ul>
+<div class="tab-content" id="batchTabsContent">
+<!-- 可报名 -->
+<div class="tab-pane fade show active" id="open" role="tabpanel" aria-labelledby="open-tab">
+<table class="table">
+<thead>
+<tr><th>批次名称</th><th>工种/等级</th><th>报名时间</th><th>认定时间</th><th>状态</th><th>报名时间</th><th>操作</th></tr>
+</thead>
+<tbody>
+{% for b in open_batches %}
+{% set reg = reg_map.get(b.id) %}
+<tr>
+<td><div>{{ b.display_title }}</div><small class="text-muted">{{ b.batch_name }}</small></td>
+<td>{{ b.skill.name }}({{ b.skill_level }})</td>
+<td><div class="text-center"><div>{{ b.start_time.strftime('%m-%d %H:%M') }}</div><div>~</div><div>{{ b.end_time.strftime('%m-%d %H:%M') }}</div></div></td>
+<td><div class="text-center"><div>{{ b.work_start_time.strftime('%m-%d %H:%M') if b.work_start_time else '未设置' }}</div><div>~</div><div>{{ b.work_end_time.strftime('%m-%d %H:%M') if b.work_end_time else '未设置' }}</div></div></td>
+<td>
+{% if reg %}
+  {% if reg.status == 'approved' %}<span class="badge bg-success">已通过</span>
+  {% elif reg.status == 'rejected' %}<span class="badge bg-danger">已拒绝{% if reg.reject_reason %}：{{ reg.reject_reason }}{% endif %}</span>
+  {% elif reg.status == 'withdrawn' %}<span class="badge bg-secondary">已退出</span>
+  {% else %}<span class="badge bg-warning">待审核</span>
+  {% endif %}
+{% elif profile.status == 'approved' %}
+  <span class="badge bg-info">可报名</span>
+{% else %}
+  <span class="badge bg-secondary">档案待审</span>
+{% endif %}
+</td>
+<td>
+{% if reg %}
+  {{ reg.created_at.strftime('%m-%d %H:%M') if reg.created_at else '-' }}
+{% else %}
+  -
+{% endif %}
+</td>
+<td>
+{% if reg %}
+  {% if reg.status in ('pending', 'rejected') %}
+  <form method="post" action="{{ url_for('student.withdraw_application', student_id=reg.id) }}" style="display:inline;">
+    <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('确定退出该批次？')">撤销</button>
+  </form>
+  {% elif reg.status == 'withdrawn' and b.end_time >= now %}
+  <form method="post" action="{{ url_for('student.apply_batch', batch_id=b.id) }}" style="display:inline;">
+    <button type="submit" class="btn btn-sm btn-outline-primary">报名</button>
+  </form>
+  {% else %}
+  <span class="text-muted">-</span>
+  {% endif %}
+{% elif profile.status == 'approved' %}
+  <form method="post" action="{{ url_for('student.apply_batch', batch_id=b.id) }}" style="display:inline;">
+    <button type="submit" class="btn btn-sm btn-primary">报名</button>
+  </form>
+{% else %}
+  <button class="btn btn-sm btn-secondary" disabled>报名</button>
+{% endif %}
+</td>
+</tr>
+{% else %}
+<tr><td colspan="7"><p class="text-muted mb-0">当前没有你可报名的认定批次。</p></td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+<!-- 已截止/已锁定 -->
+<div class="tab-pane fade" id="expired" role="tabpanel" aria-labelledby="expired-tab">
+<table class="table">
+<thead>
+<tr><th>批次名称</th><th>工种/等级</th><th>报名时间</th><th>认定时间</th><th>批次状态</th><th>我的状态</th></tr>
+</thead>
+<tbody>
+{% for b in expired_batches %}
+{% set reg = reg_map.get(b.id) %}
+<tr>
+<td><div>{{ b.display_title }}</div><small class="text-muted">{{ b.batch_name }}</small></td>
+<td>{{ b.skill.name }}({{ b.skill_level }})</td>
+<td><div class="text-center"><div>{{ b.start_time.strftime('%m-%d %H:%M') }}</div><div>~</div><div>{{ b.end_time.strftime('%m-%d %H:%M') }}</div></div></td>
+<td><div class="text-center"><div>{{ b.work_start_time.strftime('%m-%d %H:%M') if b.work_start_time else '未设置' }}</div><div>~</div><div>{{ b.work_end_time.strftime('%m-%d %H:%M') if b.work_end_time else '未设置' }}</div></div></td>
+<td>
+{% if b.is_locked %}<span class="badge bg-dark">已锁定</span>
+{% elif b.end_time < now %}<span class="badge bg-warning">已截止</span>
+{% endif %}
+</td>
+<td>
+{% if reg %}
+  {% if reg.status == 'approved' %}<span class="badge bg-success">已通过</span>
+  {% elif reg.status == 'rejected' %}<span class="badge bg-danger">已拒绝{% if reg.reject_reason %}：{{ reg.reject_reason }}{% endif %}</span>
+  {% elif reg.status == 'withdrawn' %}<span class="badge bg-secondary">已退出</span>
+  {% else %}<span class="badge bg-warning">待审核</span>
+  {% endif %}
+{% else %}
+  <span class="text-muted">未报名</span>
+{% endif %}
+</td>
+</tr>
+{% else %}
+<tr><td colspan="6"><p class="text-muted mb-0">暂无已截止或已锁定的批次。</p></td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+<!-- 个人档案 -->
+<div class="tab-pane fade" id="profile" role="tabpanel" aria-labelledby="profile-tab">
+<div class="card">
+<div class="card-body">
+<h5 class="card-title">个人档案</h5>
+<p><strong>姓名：</strong>{{ profile.name }} | <strong>身份证：</strong>{{ profile.id_number[:14] }}**** | <strong>手机：</strong>{{ profile.phone or '未填写' }}</p>
+<p>
+<strong>档案状态：</strong>
+{% if profile.status == 'pending' %}
+<span class="badge bg-warning">待审核</span>
+{% elif profile.status == 'approved' %}
+<span class="badge bg-success">已通过</span>
+{% else %}
+<span class="badge bg-danger">未通过（原因：{{ profile.reject_reason }}）</span>
+{% endif %}
+{% if profile.transfer_status == 'pending' %}
+<span class="badge bg-info ms-2">转班申请中</span>
+{% if target_class_name %}
+<span class="ms-1">拟转入班级：({{ target_class_no }}) {{ target_class_name }}</span>
+{% endif %}
+{% elif profile.transfer_status == 'rejected' %}
+<span class="badge bg-danger ms-2">转班被拒绝</span>
+{% if target_class_name %}
+<span class="ms-1">拟转入班级：({{ target_class_no }}) {{ target_class_name }}</span>
+{% endif %}
+{% if can_transfer %}
+<button type="button" class="btn btn-sm btn-outline-warning ms-2" data-bs-toggle="modal" data-bs-target="#transferModal">重新申请转班</button>
+{% endif %}
+{% else %}
+{% if can_transfer %}
+<button type="button" class="btn btn-sm btn-outline-secondary ms-2" data-bs-toggle="modal" data-bs-target="#transferModal">申请转班</button>
+{% endif %}
+{% endif %}
+</p>
+<!-- 重置通知 -->
+{% if current_user.reset_note %}
+<div class="alert alert-warning alert-dismissible fade show" role="alert">
+⚠️ {{ current_user.reset_note }}
+<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+{% endif %}
+<div class="mt-3">
+{% if profile.status == 'approved' %}
+<a href="{{ url_for('student.student_profile_view') }}" class="btn btn-outline-secondary btn-sm">查看档案</a>
+{% elif profile.status == 'rejected' %}
+<a href="{{ url_for('student.student_profile_view') }}" class="btn btn-outline-secondary btn-sm">查看档案</a>
+<a href="{{ url_for('student.edit_profile') }}" class="btn btn-outline-secondary btn-sm">重新提交</a>
+{% else %}  {# pending #}
+<a href="{{ url_for('student.student_profile_view') }}" class="btn btn-outline-secondary btn-sm">查看档案</a>
+{% endif %}
+<a href="{{ url_for('student.student_change_password') }}" class="btn btn-outline-secondary btn-sm ms-1">修改密码</a>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- 转班申请模态框（必须选择系部） -->
+<div class="modal fade" id="transferModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">申请转班</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <!-- 系部选择（必选） -->
+        <div class="mb-3">
+          <label class="form-label">选择系部 <span class="text-danger">*</span></label>
+          <select id="transferDeptSelect" class="form-select" onchange="onDeptChange()">
+            <option value="">请选择系部</option>
+            {% for dept in departments %}
+            <option value="{{ dept.id }}">{{ dept.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <!-- 班级搜索（可选，进一步缩小范围） -->
+        <div class="mb-3">
+          <label class="form-label">搜索目标班级（可选）</label>
+          <div class="input-group">
+            <input type="text" id="classSearch" class="form-control" placeholder="输入班级名称或班号">
+            <button type="button" id="searchBtn" class="btn btn-outline-secondary" onclick="searchClasses()" disabled>搜索</button>
+          </div>
+        </div>
+        <div id="classSearchResults" class="list-group mb-3" style="max-height:200px;overflow-y:auto;"></div>
+        <form id="transferForm" method="post" action="{{ url_for('student.request_transfer') }}">
+          <input type="hidden" name="new_class_id" id="selectedClassId">
+          <div class="alert alert-info">转班后档案将重新审核，请确认所选的班级正确。</div>
+          <button type="submit" class="btn btn-primary w-100">提交申请</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+// 系部选择变更时，控制搜索按钮状态
+function onDeptChange() {
+    var dept = document.getElementById('transferDeptSelect').value;
+    var btn = document.getElementById('searchBtn');
+    if (dept) {
+        btn.disabled = false;
+    } else {
+        btn.disabled = true;
+        document.getElementById('classSearchResults').innerHTML = '';
+        document.getElementById('classSearch').value = '';
+    }
+}
+
+// 搜索班级（必须已选系部）
+function searchClasses() {
+    var keyword = document.getElementById('classSearch').value.trim();
+    var deptId = document.getElementById('transferDeptSelect').value;
+    if (!deptId) {
+        alert('请先选择系部');
+        return;
+    }
+    var url = '/student/search_classes?keyword=' + encodeURIComponent(keyword) + '&dept_id=' + encodeURIComponent(deptId);
+
+    fetch(url)
+        .then(res => res.json())
+        .then(data => {
+            var html = '';
+            data.forEach(function(c) {
+                html += '<a href="#" class="list-group-item list-group-item-action" onclick="selectClass(' + c.id + ', \'' + c.display + '\')">' + c.display + '</a>';
+            });
+            document.getElementById('classSearchResults').innerHTML = html || '<div class="list-group-item text-muted">无分配班级</div>';
+        });
+}
+
+function selectClass(classId, displayName) {
+    document.getElementById('selectedClassId').value = classId;
+    document.getElementById('classSearch').value = displayName;
+    document.getElementById('classSearchResults').innerHTML = '';
+}
+</script>
+{% endblock %}

@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}{{ super() }} - 班主任详情{% endblock %}
+{% block content %}
+<h2>班主任详情</h2>
+<table class="table">
+    <tr><th>姓名</th><td>{{ teacher.name }}</td></tr>
+    <tr><th>身份证号</th><td>{{ teacher.id_number[:14] }}****</td></tr>
+    <tr><th>性别</th><td>{{ teacher.gender }}</td></tr>
+    <tr>
+    <th>系部</th>
+        <td>
+            {% if teacher.departments %}
+            {% for d in teacher.departments %}
+                {{ d.name }}{% if not loop.last %}, {% endif %}
+            {% endfor %}
+            {% else %}
+            未指定
+            {% endif %}
+        </td>
+    </tr>
+    <tr><th>手机号</th><td>{{ teacher.phone or '未填写' }}</td></tr>
+    <tr><th>邮箱验证</th><td>{{ '已验证' if teacher.user.email_verified else '未验证' }}</td></tr>
+    <tr><th>负责班级</th>
+        <td>
+            {% if teacher.classes %}
+                {% for c in teacher.classes %}
+                    {{ c.name }}{% if not loop.last %}, {% endif %}
+                {% endfor %}
+            {% else %}
+                暂无
+            {% endif %}
+        </td>
+    </tr>
+</table>
+<a href="{{ url_for('admin.manage_teachers') }}" class="btn btn-secondary">返回</a>
+{% endblock %}

@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block title %}{{ super() }} - 批次班级分配{% endblock %}
+{% block content %}
+<h2>批次班级分配</h2>
+<div class="alert alert-info">
+  批次：<strong>{{ batch.batch_name }}</strong>（{{ batch.skill.name }}-{{ batch.skill_level }}）
+  <br>在此页面管理该批次面向的班级。学生仅能报名其所在班级关联的批次。
+</div>
+<hr>
+
+<div class="row">
+    <div class="col-md-11 mx-auto">
+        <div class="row g-4">
+            <!-- 左侧：已分配班级 -->
+            <div class="{{ 'col-md-12' if readonly else 'col-md-5' }}">
+                <div class="card w-100 h-100" style="height: 300px;">
+                    <h5 class="card-header">已分配班级（{{ linked_classes|length }}）</h5>
+                    <div class="card-body" style="overflow-y: auto; height: calc(300px - 56px);">
+                        {% if linked_classes %}
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>班级名称</th>
+                                    <th>系部</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for c in linked_classes %}
+                                <tr>
+                                    <td>{{ c.name }} ({{ c.class_no }})</td>
+                                    <td>{{ c.department.name if c.department else '-' }}</td>
+                                    {% if not readonly %}
+                                    <td>
+                                        <form method="post" style="display:inline;">
+                                            <input type="hidden" name="action" value="remove">
+                                            <input type="hidden" name="class_id" value="{{ c.id }}">
+                                            <button type="submit" class="btn btn-sm btn-danger"
+                                                onclick="return confirm('确定移除班级 {{ c.name }}？')">移除</button>
+                                        </form>
+                                    </td>
+                                    {% endif %}
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        {% else %}
+                        <div class="alert alert-warning">暂无已分配的班级，请从右侧添加。</div>
+                        {% endif %}
+                        {% if linked_classes|length <= 1 %}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            {% if not readonly %}
+            <!-- 中间：箭头指示 -->
+            <div class="col-md-1 d-flex align-items-center justify-content-center">
+                <h3 class="text-muted" style="font-size: 2.5rem;">⇄</h3>
+            </div>
+
+            <!-- 右侧：可分配班级 -->
+            <div class="col-md-5">
+                <div class="card w-100" style="height: 300px;">
+                    <h5 class="card-header">可分配班级</h5>
+                    <div class="card-body" style="overflow-y: auto; height: calc(300px - 56px);">
+                        <!-- 系部筛选 -->
+                        <div class="mb-3">
+                            <select class="form-select" onchange="filterByDepartment(this.value)">
+                                <option value="">全部系部</option>
+                                {% for d in departments %}
+                                <option value="{{ d.id }}" {% if department_id == d.id %}selected{% endif %}>{{ d.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <input type="text" id="classFilter" class="form-control" placeholder="输入班级名称或班号过滤" oninput="filterUnlinked()">
+                        </div>
+                        {% if unlinked_classes %}
+                        <table class="table table-sm" id="unlinkedTable">
+                            <thead>
+                                <tr>
+                                    <th>班级名称</th>
+                                    <th>系部</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for c in unlinked_classes %}
+                                <tr data-name="{{ c.name }}" data-no="{{ c.class_no }}" data-dept="{{ c.department_id }}">
+                                    <td>{{ c.name }} ({{ c.class_no }})</td>
+                                    <td>{{ c.department.name if c.department else '-' }}</td>
+                                    <td>
+                                        <form method="post" style="display:inline;">
+                                            <input type="hidden" name="action" value="add">
+                                            <input type="hidden" name="class_id" value="{{ c.id }}">
+                                            <button type="submit" class="btn btn-sm btn-success">分配</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        {% else %}
+                        <div class="alert alert-info">暂无数据。</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- 返回按钮：底部居左 -->
+<div class="mt-3">
+    <a href="{{ url_for('admin.manage_batches') }}" class="btn btn-secondary">返回批次管理</a>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function filterUnlinked() {
+    var keyword = document.getElementById('classFilter').value.trim().toLowerCase();
+    var rows = document.querySelectorAll('#unlinkedTable tbody tr');
+    rows.forEach(row => {
+        var name = row.getAttribute('data-name').toLowerCase();
+        var no = row.getAttribute('data-no').toLowerCase();
+        row.style.display = (name.includes(keyword) || no.includes(keyword)) ? '' : 'none';
+    });
+}
+
+function filterByDepartment(deptId) {
+    if (deptId) {
+        window.location.href = '{{ url_for("admin.edit_batch_classes", batch_id=batch.id) }}?department_id=' + deptId;
+    } else {
+        window.location.href = '{{ url_for("admin.edit_batch_classes", batch_id=batch.id) }}';
+    }
+}
+</script>
+{% endblock %}

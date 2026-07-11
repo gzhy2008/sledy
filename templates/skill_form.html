@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}{{ super() }} - {% if skill %}编辑工种{% else %}新建工种{% endif %}{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <h2>{% if skill %}编辑工种{% else %}新建工种{% endif %}</h2>
+        <hr>
+        <form method="post">
+            <div class="mb-3">
+                <label class="form-label">工种名称</label>
+                <input type="text" name="name" class="form-control" value="{{ skill.name if skill else '' }}" required>
+            </div>
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                <a href="{{ url_for('admin.manage_skills') }}" class="btn btn-secondary me-md-2">取消</a>
+                <button type="submit" name="action" value="create" class="btn btn-primary">保存</button>
+                <button type="submit" name="action" value="continue" class="btn btn-outline-primary ms-2">保存并继续</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

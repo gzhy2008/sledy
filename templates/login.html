@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}登录{% endblock %}
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-8 col-lg-5">
+        <h2 class="text-center mb-4">登录</h2>
+        <form method="post" id="loginForm">
+            <div class="mb-3">
+                <label for="username" class="form-label">用户名</label>
+                <input type="text" name="username" id="username" class="form-control" required autofocus>
+            </div>
+            <div class="mb-3">
+                <label for="password" class="form-label">密码</label>
+                <input type="password" name="password" id="password" class="form-control" required>
+            </div>
+            <div class="mb-3">
+                <small class="text-muted d-block mt-2">
+                    1.未绑定邮箱时，可不填验证码直接登录;</br>2.如果邮箱失效，收不到邮箱验证码，请联系班主任或系统管理员更换邮箱。
+                </small>
+                <label for="email_code" class="form-label">邮箱验证码</label>
+                <div class="input-group">
+                    <input type="text" name="email_code" id="email_code" class="form-control" placeholder="6位数字">
+                    <button type="button" class="btn btn-outline-secondary" onclick="getLoginVerifyCode()">获取验证码</button>
+                </div>
+                <div id="emailHint" class="small text-success mt-1" style="display:none;"></div>
+                
+            </div>
+            <button type="submit" class="btn btn-primary w-100">登录</button>
+        </form>
+        <div class="mt-3 text-center">
+            认定人员（学生）账号注册入口。</br>没有账号？<a href="{{ url_for('auth.register') }}">立即注册</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+var timer = null;
+function getLoginVerifyCode() {
+    var username = document.getElementById('username').value.trim();
+    var password = document.getElementById('password').value.trim();
+    if (!username || !password) {
+        alert('请先输入用户名和密码');
+        return;
+    }
+    var btn = event.target;
+    btn.disabled = true;
+    btn.innerText = '发送中...';
+    fetch('/request_login_verify_code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'username=' + encodeURIComponent(username) + '&password=' + encodeURIComponent(password)
+    }).then(res => res.json()).then(data => {
+        if (data.status === 'success') {
+            var hint = document.getElementById('emailHint');
+            if (hint) {
+                hint.style.display = 'block';
+                hint.textContent = '验证码已发送至：' + data.masked_email;
+            }
+            alert('验证码已发送至 ' + data.masked_email + '，请查收');
+            var seconds = 60;
+            btn.innerText = seconds + '秒后重发';
+            if (timer) clearInterval(timer);
+            timer = setInterval(function() {
+                seconds--;
+                if (seconds <= 0) {
+                    clearInterval(timer);
+                    btn.disabled = false;
+                    btn.innerText = '获取验证码';
+                } else {
+                    btn.innerText = seconds + '秒后重发';
+                }
+            }, 1000);
+        } else {
+            alert(data.msg || '请求失败');
+            btn.disabled = false;
+            btn.innerText = '获取验证码';
+        }
+    }).catch(err => {
+        alert('请求失败');
+        btn.disabled = false;
+        btn.innerText = '获取验证码';
+    });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+{% block title %}{{ super() }} - 我的档案{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <h2>个人档案</h2>
+        <hr>
+
+        <!-- 引导链接：账户管理 -->
+        <div class="alert alert-light border mb-4">
+            💡 管理邮箱和密码，请前往 <a href="{{ url_for('student.student_account') }}">账户管理</a>。
+        </div>
+
+        <!-- 上部：基本信息 -->
+        <div class="card mb-4">
+            <div class="card-header"><strong>基本信息</strong></div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4"><p><strong>姓名：</strong>{{ profile.name }}</p></div>
+                    <div class="col-md-4"><p><strong>身份证号：</strong>{{ profile.id_number[:14] }}****</p></div>
+                    <div class="col-md-4"><p><strong>手机号：</strong>{{ profile.phone or '未填写' }}</p></div>
+                    <div class="col-md-4"><p><strong>班级：</strong>{{ profile.class_group.name if profile.class_group else '未分配' }}</p></div>
+                    <div class="col-md-4"><p><strong>系部：</strong>{{ profile.department_name or '未分配' }}</p></div>
+                    <div class="col-md-4"><p><strong>状态：</strong>
+                        {% if profile.status == 'pending' %}<span class="badge bg-warning">待审核</span>
+                        {% elif profile.status == 'approved' %}<span class="badge bg-success">已通过</span>
+                        {% else %}<span class="badge bg-danger">已拒绝</span>{% endif %}
+                        {% if profile.reject_reason %}<br><small class="text-danger">原因：{{ profile.reject_reason }}</small>{% endif %}
+                    </p></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 下部：材料展示 -->
+        <div class="card mb-4">
+            <div class="card-header"><strong>证件材料</strong></div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <!-- 证件照 -->
+                    <div class="col-md-3 mb-3">
+                        <p class="fw-bold">证件照</p>
+                        {% if photo_url %}
+                        <a href="{{ photo_url }}" target="_blank">
+                            <img src="{{ photo_url }}" class="img-thumbnail material-thumb" alt="证件照">
+                        </a>
+                        {% else %}
+                        <div class="file-placeholder text-muted">未上传</div>
+                        {% endif %}
+                    </div>
+                    <!-- 学历证明 -->
+                    <div class="col-md-3 mb-3">
+                        <p class="fw-bold">学历证明</p>
+                        {% if edu_url %}
+                            {% if edu_url.lower().endswith(('.jpg','.jpeg','.png','.gif','.bmp')) %}
+                            <a href="{{ edu_url }}" target="_blank">
+                                <img src="{{ edu_url }}" class="img-thumbnail material-thumb" alt="学历证明">
+                            </a>
+                            {% else %}
+                            <div class="file-placeholder">
+                                <i class="bi bi-file-earmark-text" style="font-size: 2rem;"></i><br>
+                                <a href="{{ edu_url }}" target="_blank">下载文件</a>
+                            </div>
+                            {% endif %}
+                        {% else %}
+                        <div class="file-placeholder text-muted">未上传</div>
+                        {% endif %}
+                    </div>
+                    <!-- 身份证人像面 -->
+                    <div class="col-md-3 mb-3">
+                        <p class="fw-bold">身份证人像面</p>
+                        {% if front_url %}
+                        <a href="{{ front_url }}" target="_blank">
+                            <img src="{{ front_url }}" class="img-thumbnail material-thumb" alt="身份证人像面">
+                        </a>
+                        {% else %}
+                        <div class="file-placeholder text-muted">未上传</div>
+                        {% endif %}
+                    </div>
+                    <!-- 身份证国徽面 -->
+                    <div class="col-md-3 mb-3">
+                        <p class="fw-bold">身份证国徽面</p>
+                        {% if back_url %}
+                        <a href="{{ back_url }}" target="_blank">
+                            <img src="{{ back_url }}" class="img-thumbnail material-thumb" alt="身份证国徽面">
+                        </a>
+                        {% else %}
+                        <div class="file-placeholder text-muted">未上传</div>
+                        {% endif %}
+                    </div>
+                    <!-- 其他资料 -->
+                    <div class="col-md-3 mb-3">
+                        <p class="fw-bold">其他资料</p>
+                        {% if other_url %}
+                        <div class="file-placeholder">
+                            <i class="bi bi-file-earmark-arrow-down" style="font-size: 2rem;"></i><br>
+                            <a href="{{ other_url }}" target="_blank">下载文件</a>
+                        </div>
+                        {% else %}
+                        <div class="file-placeholder text-muted">未上传</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex align-items-center">
+            <a href="{{ url_for('student.student_dashboard') }}" class="btn btn-secondary me-2">返回</a>
+            &nbsp;&nbsp;
+            {% if profile.status == 'approved' %}
+            <div>
+            
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#editPhoneModal">修改手机号</button>
+            <span class="text-muted me-2">档案已通过，只可修改手机号</span>
+        </div>
+            {% else %}
+            <a href="{{ url_for('student.edit_profile') }}" class="btn btn-primary">编辑档案</a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- 修改手机号模态框 -->
+<div class="modal fade" id="editPhoneModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">修改手机号</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editPhoneForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">新手机号</label>
+                        <input type="text" name="phone" class="form-control" value="{{ profile.phone or '' }}" required>
+                    </div>
+                    <div id="phoneMsg" class="text-danger small"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('editPhoneForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  var phone = this.querySelector('[name="phone"]').value.trim();
+  if (!phone) {
+    document.getElementById('phoneMsg').textContent = '手机号不能为空';
+    return;
+  }
+  fetch('/student/update_phone', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+    body: 'phone=' + encodeURIComponent(phone)
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.status === 'success') {
+      location.reload();
+    } else {
+      document.getElementById('phoneMsg').textContent = data.msg;
+    }
+  });
+});
+</script>
+
+<style>
+    .material-thumb { max-height: 200px; width: 100%; object-fit: contain; border-radius: 6px; }
+    .file-placeholder { width: 100%; height: 180px; display: flex; align-items: center; justify-content: center; border: 1px dashed #ccc; border-radius: 6px; background-color: #f8f9fa; }
+</style>
+{% endblock %}

@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}{{ super() }} - 个人资料{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <h2>班主任资料</h2>
+        <hr>
+        <form method="post" action="{{ url_for('teacher.teacher_profile') }}">
+            <div class="card mb-3">
+                <div class="card-header">基本信息</div>
+                <div class="card-body">
+                    <p><strong>姓名：</strong>{{ ht.name }}</p>
+                    <p><strong>身份证号：</strong>{{ ht.id_number }}</p>
+                    <p><strong>账号：</strong>{{ current_user.username }}</p>
+                    <div class="mb-3">
+                        <label class="form-label">所属系部（可多选）</label>
+                        <select name="department_ids" multiple class="form-select" size="5">
+                            {% for d in departments %}
+                            <option value="{{ d.id }}" {% if d in ht.departments %}selected{% endif %}>{{ d.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <small class="text-muted">按住 Ctrl 多选</small>
+                    </div>
+                </div>
+            </div>
+            <div class="card mb-3">
+                <div class="card-header">修改密码</div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">新密码（留空不修改）</label>
+                        <input type="password" name="password" class="form-control" placeholder="至少8位，需包含大小写字母和数字">
+                    </div>
+                    <button type="submit" class="btn btn-primary">修改密码</button>
+                </div>
+            </div>
+        </form>
+
+        <!-- 手机号区域（独立保存） -->
+        <div class="card mb-3">
+            <div class="card-header">手机号 <span class="text-danger">*</span></div>
+            <div class="card-body">
+                <div class="input-group">
+                    <input type="text" id="phoneInput" class="form-control" value="{{ ht.phone or '' }}" placeholder="必填" required>
+                    <button type="button" id="savePhoneBtn" class="btn btn-outline-primary" onclick="savePhone()">保存</button>
+                </div>
+                <div id="phoneMsg" class="small mt-1"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function savePhone() {
+    var phone = document.getElementById('phoneInput').value.trim();
+    if (!phone) { alert('手机号不能为空'); return; }
+    var btn = document.getElementById('savePhoneBtn');
+    btn.disabled = true; btn.innerText = '保存中...';
+    fetch('/teacher/update_phone', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'phone=' + encodeURIComponent(phone)
+    }).then(res => res.json()).then(data => {
+        if (data.status === 'success') {
+            document.getElementById('phoneMsg').innerHTML = '<span class="text-success">手机号已保存</span>';
+        } else {
+            alert(data.msg || '保存失败');
+        }
+        btn.disabled = false; btn.innerText = '保存';
+    }).catch(err => { alert('请求失败'); btn.disabled = false; btn.innerText = '保存'; });
+}
+</script>
+{% endblock %}

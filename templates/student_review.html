@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block title %}{{ super() }} - 审核学生 - {{ student.name }}{% endblock %}
+{% block content %}
+<h2>审核学生：{{ student.name }}</h2>
+<hr>
+<!-- 报名信息 -->
+<div class="card mb-4">
+  <div class="card-header"><strong>报名信息</strong></div>
+  <div class="card-body">
+    <div class="row">
+      <div class="col-md-4"><p><strong>姓名：</strong>{{ student.name }}</p></div>
+      <div class="col-md-4"><p><strong>身份证号：</strong>{{ student.id_number }}</p></div>
+      <div class="col-md-4"><p><strong>手机号：</strong>{{ student.user.profile.phone or student.phone or '未填写' }}</p></div>
+      <div class="col-md-4"><p><strong>批次：</strong><span title="批次号：{{ student.batch.batch_name }}">{{ student.batch.display_title }}</span></p></div>
+      <div class="col-md-4"><p><strong>报名时间：</strong>{{ student.created_at.strftime('%Y-%m-%d %H:%M') }}</p></div>
+      <div class="col-md-4">
+        <p><strong>当前状态：</strong>
+          <span class="badge bg-{{ 'success' if student.status=='approved' else 'warning' }}">{{ student.status }}</span>
+          {% if student.reject_reason %}
+          <small class="text-danger">（{{ student.reject_reason }}）</small>
+          {% endif %}
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- 证件材料 -->
+<div class="card mb-4">
+  <div class="card-header"><strong>证件材料</strong></div>
+  <div class="card-body">
+    <div class="row text-center">
+      <!-- 证件照 -->
+      <div class="col-md-3 mb-3">
+        <p class="fw-bold">证件照</p>
+        {% if photo_url %}
+        <a href="{{ photo_url }}" target="_blank">
+          <img src="{{ photo_url }}" class="img-thumbnail" style="height:180px;width:auto;max-width:100%;object-fit:contain;border-radius:6px;" alt="证件照">
+        </a>
+        {% else %}
+        <div style="height:180px;display:flex;align-items:center;justify-content:center;border:1px dashed #ccc;border-radius:6px;background-color:#f8f9fa;color:#6c757d;">未上传</div>
+        {% endif %}
+      </div>
+      <!-- 学历证明 -->
+      <div class="col-md-3 mb-3">
+        <p class="fw-bold">学历证明</p>
+        {% if edu_url %}
+        {% if edu_url.lower().endswith(('.jpg','.jpeg','.png','.gif','.bmp')) %}
+        <a href="{{ edu_url }}" target="_blank">
+          <img src="{{ edu_url }}" class="img-thumbnail" style="height:180px;width:auto;max-width:100%;object-fit:contain;border-radius:6px;" alt="学历证明">
+        </a>
+        {% else %}
+        <div style="height:180px;display:flex;align-items:center;justify-content:center;border:1px dashed #ccc;border-radius:6px;background-color:#f8f9fa;">
+          <div><i class="fas fa-file-pdf" style="font-size:2rem;"></i><br><a href="{{ edu_url }}" target="_blank">下载文件</a></div>
+        </div>
+        {% endif %}
+        {% else %}
+        <div style="height:180px;display:flex;align-items:center;justify-content:center;border:1px dashed #ccc;border-radius:6px;background-color:#f8f9fa;color:#6c757d;">未上传</div>
+        {% endif %}
+      </div>
+      <!-- 身份证人像面 -->
+      <div class="col-md-3 mb-3">
+        <p class="fw-bold">身份证人像面</p>
+        {% if id_card_front_url %}
+        <a href="{{ id_card_front_url }}" target="_blank">
+          <img src="{{ id_card_front_url }}" class="img-thumbnail" style="height:180px;width:auto;max-width:100%;object-fit:contain;border-radius:6px;" alt="身份证人像面">
+        </a>
+        {% else %}
+        <div style="height:180px;display:flex;align-items:center;justify-content:center;border:1px dashed #ccc;border-radius:6px;background-color:#f8f9fa;color:#6c757d;">未上传</div>
+        {% endif %}
+      </div>
+      <!-- 身份证国徽面 -->
+      <div class="col-md-3 mb-3">
+        <p class="fw-bold">身份证国徽面</p>
+        {% if id_card_back_url %}
+        <a href="{{ id_card_back_url }}" target="_blank">
+          <img src="{{ id_card_back_url }}" class="img-thumbnail" style="height:180px;width:auto;max-width:100%;object-fit:contain;border-radius:6px;" alt="身份证国徽面">
+        </a>
+        {% else %}
+        <div style="height:180px;display:flex;align-items:center;justify-content:center;border:1px dashed #ccc;border-radius:6px;background-color:#f8f9fa;color:#6c757d;">未上传</div>
+        {% endif %}
+      </div>
+      <!-- 其他资料 -->
+      <div class="col-md-3 mb-3">
+        <p class="fw-bold">其他资料</p>
+        {% if other_file_url %}
+        <div style="height:180px;display:flex;align-items:center;justify-content:center;border:1px dashed #ccc;border-radius:6px;background-color:#f8f9fa;">
+          <div><i class="fas fa-file-archive" style="font-size:2rem;"></i><br><a href="{{ other_file_url }}" target="_blank">下载文件</a></div>
+        </div>
+        {% else %}
+        <div style="height:180px;display:flex;align-items:center;justify-content:center;border:1px dashed #ccc;border-radius:6px;background-color:#f8f9fa;color:#6c757d;">未上传</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+<!-- 审核操作 -->
+{% if current_user.role in ['admin', 'super_admin'] and student.status == 'pending' %}
+<div class="mt-3">
+  <form method="post" action="{{ url_for('admin.approve_single', student_id=student.id, batch=current_batch) }}" style="display:inline;">
+    <button type="submit" name="action" value="approve" class="btn btn-success btn-lg">✅ 通过</button>
+  </form>
+  <button type="button" class="btn btn-danger btn-lg" data-bs-toggle="modal" data-bs-target="#rejectModal">❌ 拒绝</button>
+</div>
+<!-- 拒绝原因模态框 -->
+<div class="modal fade" id="rejectModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="post" action="{{ url_for('admin.approve_single', student_id=student.id, batch=current_batch) }}">
+        <input type="hidden" name="action" value="reject">
+        <div class="modal-header">
+          <h5 class="modal-title">填写拒绝原因</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <textarea name="reason" class="form-control" rows="3" required minlength="5" maxlength="20" placeholder="请输入5-20字原因"></textarea>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+          <button type="submit" class="btn btn-danger">确认拒绝</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% elif student.status != 'pending' %}
+<div class="alert alert-info">该学生已审核完毕，状态：{{ student.status }}</div>
+{% else %}
+<div class="alert alert-info">您没有审核权限</div>
+{% endif %}
+{% endblock %}

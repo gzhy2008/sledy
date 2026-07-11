@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}{{ super() }} - 创建班主任账号{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-4">   <!-- 由 col-lg-8 改为 col-md-6，更窄 -->
+        <h2>创建班主任账号</h2>
+        <hr>
+        <form method="post">
+            <div class="mb-3">
+                <label for="name" class="form-label">姓名</label>
+                <input type="text" name="name" id="name" class="form-control" required>
+            </div>
+            <div class="mb-3">
+                <label for="id_number" class="form-label">身份证号</label>
+                <input type="text" name="id_number" id="id_number" class="form-control" required maxlength="18">
+                <small class="text-danger">⚠️ 请仔细核对身份证号，提交后无法自行更改。如需修改请联系超级管理员。</small>
+            </div>
+            <div class="mb-3">
+                <label for="gender" class="form-label">性别</label>
+                <select name="gender" id="gender" class="form-select" required>
+                    <option value="">请选择</option>
+                    <option value="男">男</option>
+                    <option value="女">女</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary">创建</button>
+            <a href="{{ url_for('admin.manage_teachers') }}" class="btn btn-secondary ms-2">返回</a>
+        </form>
+    </div>
+</div>
+<script>
+document.getElementById('id_number').addEventListener('input', function() {
+    var val = this.value, sel = document.getElementById('gender');
+    if (val.length === 18 && /^\d{17}[\dXx]$/.test(val)) {
+        sel.value = parseInt(val.charAt(16)) % 2 === 1 ? '男' : '女';
+    }
+});
+</script>
+{% endblock %}

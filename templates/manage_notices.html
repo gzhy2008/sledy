@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+{% block title %}{{ super() }} - 通知管理{% endblock %}
+{% block content %}
+<h2>通知管理</h2>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <a href="#" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#noticeModal" onclick="clearForm()">+ 新建通知</a>
+    </div>
+</div>
+
+<!-- 状态选项卡 -->
+<div class="status-tabs mb-3">
+    <a href="{{ url_for(base_url, status='published') }}"
+       class="btn btn-sm {{ 'btn-success' if current_status == 'published' else 'btn-outline-success' }}">已发布</a>
+    <a href="{{ url_for(base_url, status='draft') }}"
+       class="btn btn-sm {{ 'btn-purple' if current_status == 'draft' else 'btn-outline-purple' }}">草稿</a>
+</div>
+
+<!-- 搜索 -->
+<div class="mb-3">
+    <form method="get" class="row g-2 align-items-center">
+        <input type="hidden" name="status" value="{{ current_status }}">
+        <div class="col-auto">
+            <input type="text" name="search" class="form-control" style="width: 260px;"
+                   placeholder="搜索通知标题..." value="{{ search or '' }}">
+        </div>
+        <div class="col-auto">
+            <button type="submit" class="btn btn-primary">搜索</button>
+            {% if search %}<a href="{{ url_for(base_url, status=current_status) }}" class="btn btn-outline-secondary">重置</a>{% endif %}
+        </div>
+    </form>
+</div>
+
+{% if notices %}
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th style="width:50px;">#</th>
+            <th>重要程度</th>
+            <th>标题</th>
+            <th>公开</th>
+            <th>状态</th>
+            <th>时间</th>
+            <th>操作</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for n in notices %}
+        <tr>
+            <td>{{ (page - 1) * 20 + loop.index }}</td>
+            <td>
+                {% if n.importance == 'urgent' %}
+                <span class="badge bg-danger">紧急</span>
+                {% elif n.importance == 'important' %}
+                <span class="badge bg-warning text-dark">重要</span>
+                {% else %}
+                <span class="badge bg-info text-dark">普通</span>
+                {% endif %}
+            </td>
+            <td>{{ n.title }}</td>
+            <td>{% if n.is_public %}🌐{% else %}-{% endif %}</td>
+            <td>{% if n.is_published %}<span class="badge bg-success">已发布</span>{% else %}<span class="badge bg-secondary">草稿</span>{% endif %}</td>
+            <td><small>{{ n.created_at.strftime('%m/%d %H:%M') }}</small></td>
+            <td>
+                <button class="btn btn-sm btn-outline-primary" onclick="editNotice({{ n.id }}, '{{ n.title|e }}', '{{ n.content|e|replace('\n', '\\n') }}', '{{ n.importance }}', {{ 'true' if n.is_public else 'false' }}, {{ 'true' if n.is_published else 'false' }})" data-bs-toggle="modal" data-bs-target="#noticeModal">编辑</button>
+                <form method="post" action="{{ url_for(toggle_endpoint, notice_id=n.id) }}" style="display:inline;">
+                    <input type="hidden" name="redirect_status" value="{{ current_status }}">
+                    <button type="submit" class="btn btn-sm {{ 'btn-outline-warning' if n.is_published else 'btn-outline-success' }}">{{ '撤回' if n.is_published else '发布' }}</button>
+                </form>
+                <form method="post" action="{{ url_for(delete_endpoint, notice_id=n.id) }}" style="display:inline;"
+                      onsubmit="return confirm('确定删除此通知？')">
+                    <input type="hidden" name="redirect_status" value="{{ current_status }}">
+                    <button type="submit" class="btn btn-sm btn-outline-danger">删除</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% if total_pages > 1 %}
+<nav>
+    <ul class="pagination justify-content-center">
+        <li class="page-item {{ 'disabled' if page <= 1 }}">
+            <a class="page-link" href="{{ url_for(base_url, status=current_status, search=search, page=page-1) }}">上一页</a>
+        </li>
+        {% for p in range(1, total_pages + 1) %}
+        <li class="page-item {{ 'active' if p == page }}">
+            <a class="page-link" href="{{ url_for(base_url, status=current_status, search=search, page=p) }}">{{ p }}</a>
+        </li>
+        {% endfor %}
+        <li class="page-item {{ 'disabled' if page >= total_pages }}">
+            <a class="page-link" href="{{ url_for(base_url, status=current_status, search=search, page=page+1) }}">下一页</a>
+        </li>
+    </ul>
+</nav>
+{% endif %}
+{% else %}
+<p class="text-muted">暂无通知</p>
+{% endif %}
+
+<!-- 新建/编辑模态框 -->
+<div class="modal fade" id="noticeModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="post" action="{{ url_for('super_admin.save_notice') }}">
+                <input type="hidden" name="id" id="noticeId">
+                <input type="hidden" name="redirect_status" id="redirectStatus" value="{{ current_status }}">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="noticeModalTitle">新建通知</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">标题 *</label>
+                        <input type="text" name="title" id="noticeTitle" class="form-control" required maxlength="128">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">内容</label>
+                        <textarea name="content" id="noticeContent" class="form-control" rows="6"></textarea>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label">重要程度</label>
+                            <select name="importance" id="noticeImportance" class="form-select">
+                                <option value="normal">普通</option>
+                                <option value="important">重要</option>
+                                <option value="urgent">紧急</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">状态</label>
+                            <select name="is_published" id="noticePublished" class="form-select">
+                                <option value="0">草稿</option>
+                                <option value="1">已发布</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="form-check mt-2">
+                                <input type="checkbox" name="is_public" id="noticePublic" value="1" class="form-check-input">
+                                <label class="form-check-label" for="noticePublic">向陌生人展示</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function clearForm() {
+    document.getElementById('noticeId').value = '';
+    document.getElementById('noticeTitle').value = '';
+    document.getElementById('noticeContent').value = '';
+    document.getElementById('noticeImportance').value = 'normal';
+    document.getElementById('noticePublished').value = '0';
+    document.getElementById('noticePublic').checked = false;
+    document.getElementById('noticeModalTitle').textContent = '新建通知';
+}
+function editNotice(id, title, content, importance, isPublic, isPublished) {
+    document.getElementById('noticeId').value = id;
+    document.getElementById('noticeTitle').value = title;
+    document.getElementById('noticeContent').value = content.replace(/\\n/g, '\n');
+    document.getElementById('noticeImportance').value = importance;
+    document.getElementById('noticePublished').value = isPublished ? '1' : '0';
+    document.getElementById('noticePublic').checked = isPublic;
+    document.getElementById('noticeModalTitle').textContent = '编辑通知';
+}
+</script>
+{% endblock %}

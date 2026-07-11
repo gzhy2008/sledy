@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}{{ super() }} - 比对结果{% endblock %}
+{% block content %}
+<h2>比对结果：{{ batch.display_title }}</h2>
+<p class="text-muted">批次号：{{ batch.batch_name }}</p>
+<hr>
+<!-- 统计 -->
+<div class="row">
+  <div class="col-12">
+    <div class="card mb-3">
+      <div class="card-header"><strong>统计</strong></div>
+      <div class="card-body">
+        <p>Excel 中总人数：<strong>{{ total_excel }}</strong></p>
+        <p>本班在该批次已通过人数：<strong>{{ total_registered }}</strong></p>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- 选项卡导航 -->
+<ul class="nav nav-tabs mb-3" id="compareTabs" role="tablist">
+  <li class="nav-item" role="presentation">
+    <button class="nav-link active" id="tab1-tab" data-bs-toggle="tab" data-bs-target="#tab1" type="button" role="tab" aria-controls="tab1" aria-selected="true">
+      ✅ 本班已通过 & Excel有（{{ approved_and_in_excel|length }}）
+    </button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="tab2-tab" data-bs-toggle="tab" data-bs-target="#tab2" type="button" role="tab" aria-controls="tab2" aria-selected="false">
+      ⚠️ 本班已通过 & Excel无（{{ approved_not_in_excel|length }}）
+    </button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="tab3-tab" data-bs-toggle="tab" data-bs-target="#tab3" type="button" role="tab" aria-controls="tab3" aria-selected="false">
+      ❓ Excel有 & 系统无报名（{{ in_excel_not_registered|length }}）
+    </button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="tab4-tab" data-bs-toggle="tab" data-bs-target="#tab4" type="button" role="tab" aria-controls="tab4" aria-selected="false">
+      ❓ Excel有 & 系统未通过（{{ in_excel_not_approved|length }}）
+    </button>
+  </li>
+</ul>
+<!-- 选项卡内容 -->
+<div class="tab-content" id="compareTabsContent">
+  <!-- 标签1：系统已通过 & Excel有 -->
+  <div class="tab-pane fade show active" id="tab1" role="tabpanel" aria-labelledby="tab1-tab">
+    {% if approved_and_in_excel %}
+    <table class="table table-sm">
+      <thead><tr><th>姓名</th><th>身份证号</th></tr></thead>
+      <tbody>
+        {% for name, id_num in approved_and_in_excel %}
+        <tr><td>{{ name }}</td><td>{{ id_num[:14] }}****</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="text-muted">无</p>
+    {% endif %}
+  </div>
+  <!-- 标签2：系统已通过 & Excel无 -->
+  <div class="tab-pane fade" id="tab2" role="tabpanel" aria-labelledby="tab2-tab">
+    {% if approved_not_in_excel %}
+    <table class="table table-sm">
+      <thead><tr><th>姓名</th><th>身份证号</th></tr></thead>
+      <tbody>
+        {% for name, id_num in approved_not_in_excel %}
+        <tr><td>{{ name }}</td><td>{{ id_num[:14] }}****</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="text-muted">无</p>
+    {% endif %}
+  </div>
+  <!-- 标签3：Excel有 & 系统无报名 -->
+  <div class="tab-pane fade" id="tab3" role="tabpanel" aria-labelledby="tab3-tab">
+    {% if in_excel_not_registered %}
+    <table class="table table-sm">
+      <thead><tr><th>姓名</th><th>身份证号</th></tr></thead>
+      <tbody>
+        {% for name, id_num in in_excel_not_registered %}
+        <tr><td>{{ name }}</td><td>{{ id_num[:14] }}****</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="text-muted">无</p>
+    {% endif %}
+  </div>
+  <!-- 标签4：Excel有 & 系统未通过 -->
+  <div class="tab-pane fade" id="tab4" role="tabpanel" aria-labelledby="tab4-tab">
+    {% if in_excel_not_approved %}
+    <table class="table table-sm">
+      <thead><tr><th>姓名</th><th>身份证号</th></tr></thead>
+      <tbody>
+        {% for name, id_num in in_excel_not_approved %}
+        <tr><td>{{ name }}</td><td>{{ id_num[:14] }}****</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="text-muted">无</p>
+    {% endif %}
+  </div>
+</div>
+<a href="{{ url_for('admin.batch_reviews', batch_name=batch.batch_name) }}" class="btn btn-secondary mt-3">← 返回批次审核</a>
+{% endblock %}
