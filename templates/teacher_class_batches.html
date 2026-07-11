@@ -51,6 +51,10 @@
     </tbody>
 </table>
 
+{% else %}
+    <p class="text-muted">暂无关联批次</p>
+{% endif %}
+
 <!-- 分页导航 -->
 {% if total > 0 %}
     <p class="text-muted">共 {{ total }} 条记录，当前第 {{ page }}/{{ total_pages }} 页</p>
@@ -71,8 +75,6 @@
         </ul>
     </nav>
     {% endif %}
-    {% else %}
-    <p class="text-muted">暂无关联批次</p>
 {% endif %}
 
 <a href="{{ url_for('teacher.teacher_classes') }}" class="btn btn-secondary mt-3">← 返回我的班级</a>

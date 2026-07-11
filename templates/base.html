@@ -67,8 +67,8 @@
                 {% elif current_user.role == 'admin' %}
                 {% if current_user.admin_profile.is_global %}
                 <!-- 全局业务管理员 -->
-                <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.manage_batches') }}">批次管理</a></li>
                 <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.admin_dashboard') }}">报名管理</a></li>
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.manage_batches') }}">批次管理</a></li>
                 <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.manage_teachers') }}">班主任管理</a></li>
                 <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.manage_skills') }}">工种管理</a></li>
                 <li class="nav-item dropdown">
