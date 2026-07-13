@@ -1,5 +1,27 @@
 {% extends "base.html" %}
-{% block title %}{{ super() }} - 批次管理{% endblock %}
+{% block title %}{{ super() }} - 批次管理
+<script>
+function sendExportCode() {
+    var btn = document.getElementById('sendExportCodeBtn');
+    btn.disabled = true; btn.innerText = '发送中...';
+    fetch('/admin/export/send_code', {method:'POST', headers:{'X-CSRFToken':'{{ csrf_token }}'}})
+    .then(r => r.json()).then(d => {
+        document.getElementById('exportCodeMsg').innerHTML = d.status==='ok'
+            ? '<span class="text-success">' + d.msg + '</span>'
+            : '<span class="text-danger">' + d.msg + '</span>';
+        btn.disabled = false; btn.innerText = '发送导出验证码';
+    });
+}
+document.querySelectorAll('.export-form').forEach(f => {
+    f.addEventListener('submit', function(e) {
+        var code = document.getElementById('exportCodeInput').value;
+        if (!code) { e.preventDefault(); alert('请输入验证码'); return; }
+        this.querySelector('.export-code-field').value = code;
+    });
+});
+</script>
+{% endblock %}
+{% endblock %}
 {% block content %}
 <h2>批次管理</h2>
 <div class="mb-3">
@@ -8,6 +30,8 @@
   {% endif %}
 </div>
 <!-- 状态筛选选项卡 -->
+<div class="d-flex align-items-center gap-2 mb-3"><button type="button" id="sendExportCodeBtn" class="btn btn-outline-info btn-sm" onclick="sendExportCode()">发送导出验证码</button><input type="text" id="exportCodeInput" class="form-control form-control-sm" placeholder="6位验证码" style="width:120px;" maxlength="6"><span id="exportCodeMsg" class="small"></span></div>
+
 <div class="status-tabs mb-3">
   <a href="{{ url_for('admin.manage_batches', status='active') }}" 
     class="btn btn-sm {{ 'btn-success' if current_status == 'active' else 'btn-outline-success' }}">进行中</a>
@@ -182,7 +206,8 @@
       {% else %}
       <!-- 进行中选项卡（完整操作） -->
       <a href="{{ url_for('admin.batch_reviews', batch_name=b.batch_name) }}" class="btn btn-sm btn-primary" title="查看该批次的报名">查看</a>
-      <form method="post" action="{{ url_for('admin.export_batch', batch=b.batch_name) }}" style="display:inline;">
+      <form method="post" action="{{ url_for('admin.export_batch', batch=b.batch_name) }}" style="display:inline;" class="export-form">
+        <input type="hidden" name="export_code" class="export-code-field">
         <button type="submit" class="btn btn-sm btn-outline-success" title="导出全部已通过学生资料">导出</button>
       </form>
       <div class="btn-group" style="position: static;">
@@ -292,6 +317,28 @@
     </div>
   </div>
 </div>
+
+<script>
+function sendExportCode() {
+    var btn = document.getElementById('sendExportCodeBtn');
+    btn.disabled = true; btn.innerText = '发送中...';
+    fetch('/admin/export/send_code', {method:'POST', headers:{'X-CSRFToken':'{{ csrf_token }}'}})
+    .then(r => r.json()).then(d => {
+        document.getElementById('exportCodeMsg').innerHTML = d.status==='ok'
+            ? '<span class="text-success">' + d.msg + '</span>'
+            : '<span class="text-danger">' + d.msg + '</span>';
+        btn.disabled = false; btn.innerText = '发送导出验证码';
+    });
+}
+document.querySelectorAll('.export-form').forEach(f => {
+    f.addEventListener('submit', function(e) {
+        var code = document.getElementById('exportCodeInput').value;
+        if (!code) { e.preventDefault(); alert('请输入验证码'); return; }
+        this.querySelector('.export-code-field').value = code;
+    });
+});
+</script>
+{% endblock %}
 {% endblock %}
 
 {% block scripts %}
@@ -316,4 +363,26 @@ editTimeModal.addEventListener('show.bs.modal', function(event) {
   form.action = '/admin/batch/' + batchId + '/update_end_time';
 });
 </script>
+
+<script>
+function sendExportCode() {
+    var btn = document.getElementById('sendExportCodeBtn');
+    btn.disabled = true; btn.innerText = '发送中...';
+    fetch('/admin/export/send_code', {method:'POST', headers:{'X-CSRFToken':'{{ csrf_token }}'}})
+    .then(r => r.json()).then(d => {
+        document.getElementById('exportCodeMsg').innerHTML = d.status==='ok'
+            ? '<span class="text-success">' + d.msg + '</span>'
+            : '<span class="text-danger">' + d.msg + '</span>';
+        btn.disabled = false; btn.innerText = '发送导出验证码';
+    });
+}
+document.querySelectorAll('.export-form').forEach(f => {
+    f.addEventListener('submit', function(e) {
+        var code = document.getElementById('exportCodeInput').value;
+        if (!code) { e.preventDefault(); alert('请输入验证码'); return; }
+        this.querySelector('.export-code-field').value = code;
+    });
+});
+</script>
+{% endblock %}
 {% endblock %}
