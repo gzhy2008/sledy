@@ -10,8 +10,8 @@
 
 ```bash
 # 1. 克隆代码
-git clone https://github.com/gzhy2008/SLA_DocSystem.git
-cd SLA_DocSystem
+git clone https://github.com/gzhy2008/sledy.git
+cd sledy
 
 # 2. 创建虚拟环境
 python3 -m venv venv
