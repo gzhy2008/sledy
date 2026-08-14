@@ -11,7 +11,7 @@ from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_mail import Message
 
-from models import db, User, ClassGroup, ExamBatch, Skill, Notice
+from models import db, User, ClassGroup, ExamBatch, Skill, Notice, AuditStatus
 from sqlalchemy.orm import joinedload
 from services import validate_phone, validate_password_strength, mask_email
 from shared import (
@@ -34,10 +34,11 @@ def index():
         is_published=True, is_public=True, is_deleted=False
     ).order_by(Notice.created_at.desc()).limit(5).all()
 
-    # 最新批次（最多5条，按创建时间倒序）
+    # 最新批次（最多5条，按创建时间倒序，仅展示已审核通过的）
     latest_batches = ExamBatch.query.options(
-        joinedload(ExamBatch.skill)
-    ).order_by(ExamBatch.created_at.desc()).limit(5).all()
+        joinedload(ExamBatch.skill),
+        joinedload(ExamBatch.classes)
+    ).filter(ExamBatch.audit_status == AuditStatus.APPROVED).order_by(ExamBatch.created_at.desc()).limit(5).all()
 
     return render_template('index.html',
         notices=notices,
@@ -76,9 +77,9 @@ def batches_all():
     search = request.args.get('search', '').strip()
     now = datetime.now()
 
-    query = ExamBatch.query.options(joinedload(ExamBatch.skill)).order_by(ExamBatch.created_at.desc())
-    # 归档批次对陌生人不可见
-    query = query.filter(ExamBatch.is_archived == False)
+    query = ExamBatch.query.options(joinedload(ExamBatch.skill), joinedload(ExamBatch.classes)).order_by(ExamBatch.created_at.desc())
+    # 归档批次及未审核通过的批次对陌生人不可见
+    query = query.filter(ExamBatch.is_archived == False, ExamBatch.audit_status == AuditStatus.APPROVED)
     if status == 'expired':
         query = query.filter(ExamBatch.end_time < now)
     else:

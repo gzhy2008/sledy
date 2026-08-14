@@ -16,7 +16,7 @@ from flask_login import login_required, current_user
 from flask_mail import Message
 from werkzeug.security import generate_password_hash
 
-from models import db, User, UserProfile, ClassGroup, HeadTeacher, ExamBatch, Student, AdminProfile, Department, batch_classes, Skill, Notice
+from models import db, User, UserProfile, ClassGroup, HeadTeacher, ExamBatch, Student, AdminProfile, Department, batch_classes, Skill, Notice, AuditStatus
 from sqlalchemy.orm import joinedload
 from sqlalchemy import case
 from utils import validate_id_number_checksum, role_required
@@ -26,7 +26,7 @@ from shared import (
     save_file, send_verify_code, revoke_student_registrations_and_notify,
     get_admin_department_ids, send_credentials_notification, audit_log,
     check_rate_limit, _login_attempts, notify_student,
-    notify_class_students
+    notify_class_students, generate_batch_name
 )
 
 admin_bp = Blueprint('admin', __name__)
@@ -325,12 +325,16 @@ def manage_batches():
     per_page = 50
     now = datetime.now()
 
-    query = ExamBatch.query.options(joinedload(ExamBatch.skill))
+    query = ExamBatch.query.options(joinedload(ExamBatch.skill), joinedload(ExamBatch.department))
 
-    if status == 'active':
-        query = query.filter(ExamBatch.is_archived == False, ExamBatch.end_time >= now)
+    if status == 'pending':
+        query = query.filter(ExamBatch.audit_status == AuditStatus.PENDING)
+    elif status == 'rejected':
+        query = query.filter(ExamBatch.audit_status == AuditStatus.REJECTED)
+    elif status == 'active':
+        query = query.filter(ExamBatch.audit_status == AuditStatus.APPROVED, ExamBatch.is_archived == False, ExamBatch.end_time >= now)
     elif status == 'expired':
-        query = query.filter(ExamBatch.is_archived == False, ExamBatch.end_time < now)
+        query = query.filter(ExamBatch.audit_status == AuditStatus.APPROVED, ExamBatch.is_archived == False, ExamBatch.end_time < now)
     elif status == 'archived':
         query = query.filter(ExamBatch.is_archived == True)
 
@@ -619,9 +623,20 @@ def update_batch_end_time(batch_id):
 @login_required
 @role_required('admin', 'super_admin')
 def create_batch():
+    # 业务管理员/超管可创建的系部范围
+    if current_user.role == 'admin':
+        ap = current_user.admin_profile
+        if ap and not ap.is_global:
+            departments = ap.departments   # 普通管理员：只显示管辖系部
+        else:
+            departments = Department.query.filter_by(is_deleted=False).all()
+    else:
+        departments = Department.query.filter_by(is_deleted=False).all()
+
     if request.method == 'POST':
         skill_id = request.form.get('skill_id', '').strip()
         skill_level = request.form.get('skill_level', '').strip()
+        department_id = request.form.get('department_id', '').strip()
         start_time = request.form.get('start_time', '').strip()
         end_time = request.form.get('end_time', '').strip()
         work_start_time = request.form.get('work_start_time', '').strip()
@@ -632,6 +647,9 @@ def create_batch():
         errors = []
         if not skill_id: errors.append('请选择工种')
         if not skill_level: errors.append('等级不能为空')
+        if not department_id: errors.append('请选择系部')
+        elif int(department_id) not in [d.id for d in departments]:
+            errors.append('无效的系部选择')
         if not start_time or not end_time: errors.append('报名起止时间不能为空')
         if not work_start_time or not work_end_time: errors.append('认定工作起止时间不能为空')
         try:
@@ -656,24 +674,11 @@ def create_batch():
             for e in errors: flash(e, 'danger')
             skills = Skill.query.filter(Skill.is_locked == False).all()
             classes = ClassGroup.query.filter(ClassGroup.is_active == True, ClassGroup.is_graduated == False).all()
-            return render_template('batch_form.html', form=request.form, skills=skills, classes=classes)
+            return render_template('batch_form.html', form=request.form, skills=skills, classes=classes, departments=departments)
 
-        # 生成批次号（行锁）
-        skill = db.session.query(Skill).filter_by(id=int(skill_id)).with_for_update().first()
-        if not skill:
-            flash('无效工种', 'danger')
-            return redirect(url_for('admin.create_batch'))
-
-        new_issue = skill.issue_number + 1
-        date_str = datetime.now().strftime('%Y%m%d')
-        random_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=5))
-        batch_name = f"{date_str}{skill.id}{new_issue}{random_code}"
-        retry = 0
-        while ExamBatch.query.filter_by(batch_name=batch_name).first() and retry < 3:
-            random_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=5))
-            batch_name = f"{date_str}{skill.id}{new_issue}{random_code}"
-            retry += 1
-        if retry == 3 and ExamBatch.query.filter_by(batch_name=batch_name).first():
+        # 生成批次号（行锁 + 递增期数）
+        batch_name, new_issue = generate_batch_name(skill_id)
+        if not batch_name:
             flash('批次号生成失败，请重试', 'danger')
             return redirect(url_for('admin.create_batch'))
 
@@ -686,12 +691,15 @@ def create_batch():
             end_time=end_dt,
             work_start_time=work_start_dt,
             work_end_time=work_end_dt,
-            issue_number=new_issue
+            issue_number=new_issue,
+            department_id=int(department_id),
+            created_by=current_user.id,
+            audit_status=AuditStatus.APPROVED,   # 业务管理员/超管创建，免审直接通过
+            audit_comment=''
             )
 
         # 不在创建时绑定班级，班级绑定移至编辑班级功能中
         db.session.add(batch)
-        skill.issue_number = new_issue
         db.session.commit()
 
         flash(f'批次创建成功！批次号：{batch_name}。如需添加班级，请到批次列表点击“匹配班级”。', 'success')
@@ -702,7 +710,77 @@ def create_batch():
 
     skills = Skill.query.filter(Skill.is_locked == False).all()
     classes = ClassGroup.query.filter(ClassGroup.is_active == True, ClassGroup.is_graduated == False).all()
-    return render_template('batch_form.html', skills=skills, classes=classes)
+    return render_template('batch_form.html', skills=skills, classes=classes, departments=departments)
+
+#----------------------- 批次审核（业务管理员） -----------------------
+@admin_bp.route('/admin/batch/audits')
+@login_required
+@role_required('admin', 'super_admin')
+def batch_audits():
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
+
+    query = ExamBatch.query.filter_by(audit_status=AuditStatus.PENDING).options(
+        joinedload(ExamBatch.skill),
+        joinedload(ExamBatch.department),
+        joinedload(ExamBatch.creator)
+    )
+
+    dept_ids = get_admin_department_ids()
+    if dept_ids is not None:
+        query = query.filter(ExamBatch.department_id.in_(dept_ids))
+
+    total = query.count()
+    total_pages = (total + per_page - 1) // per_page
+    if page < 1: page = 1
+    if total_pages > 0 and page > total_pages: page = total_pages
+
+    batches = query.order_by(ExamBatch.created_at.asc()).limit(per_page).offset((page - 1) * per_page).all()
+
+    return render_template('batch_audits.html',
+                           batches=batches,
+                           page=page,
+                           total_pages=total_pages,
+                           total=total)
+
+
+@admin_bp.route('/admin/batch/<int:batch_id>/review', methods=['POST'])
+@login_required
+@role_required('admin', 'super_admin')
+def review_batch(batch_id):
+    batch = ExamBatch.query.get_or_404(batch_id)
+
+    # 权限：普通管理员只能审核自己管辖系部的批次
+    dept_ids = get_admin_department_ids()
+    if dept_ids is not None and batch.department_id not in dept_ids:
+        flash('您没有权限审核该系部的批次', 'danger')
+        return redirect(url_for('admin.batch_audits'))
+
+    if batch.audit_status != AuditStatus.PENDING:
+        flash('该批次不在待审核状态', 'warning')
+        return redirect(url_for('admin.batch_audits'))
+
+    action = request.form.get('action')
+    if action not in ('approve', 'reject'):
+        flash('无效操作', 'danger')
+        return redirect(url_for('admin.batch_audits'))
+
+    if action == 'approve':
+        batch.audit_status = AuditStatus.APPROVED
+        batch.audit_comment = ''
+        flash(f'批次 {batch.batch_name} 已审核通过', 'success')
+    else:
+        comment = request.form.get('comment', '').strip()
+        if not comment:
+            flash('请填写批注（退回原因）', 'danger')
+            return redirect(url_for('admin.batch_audits'))
+        batch.audit_status = AuditStatus.REJECTED
+        batch.audit_comment = comment
+        flash(f'批次 {batch.batch_name} 已退回，批注已记录', 'success')
+
+    db.session.commit()
+    audit_log('REVIEW_BATCH', f'{batch.batch_name} -> {AuditStatus(batch.audit_status).name}')
+    return redirect(url_for('admin.batch_audits'))
 
 #-----------------------
 @admin_bp.route('/admin/batch/<int:batch_id>/toggle_lock', methods=['POST'])
@@ -1596,6 +1674,9 @@ def export_batch(batch):
         return redirect(url_for('admin.manage_batches'))
     if batch_obj.is_locked:
         flash(f'批次 {batch} 已被锁定，无法导出', 'warning')
+        return redirect(url_for('admin.batch_reviews', batch_name=batch))
+    if batch_obj.audit_status != AuditStatus.APPROVED:
+        flash(f'批次 {batch} 未通过审核，无法导出', 'warning')
         return redirect(url_for('admin.batch_reviews', batch_name=batch))
 
     code = request.form.get('export_code', '').strip()

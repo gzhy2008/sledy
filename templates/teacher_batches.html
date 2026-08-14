@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}{{ super() }} - 我的批次{% endblock %}
+{% block content %}
+<h2>我的批次</h2>
+<div class="mb-3">
+  <a href="{{ url_for('teacher.teacher_create_batch') }}" class="btn btn-primary">+ 创建批次</a>
+</div>
+
+<!-- 状态筛选选项卡 -->
+<ul class="nav nav-tabs mb-3">
+    <li class="nav-item">
+        <a class="nav-link {% if current_status == 'all' %}active{% endif %}"
+           href="{{ url_for('teacher.teacher_batches', status='all') }}">全部 ({{ total }})</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if current_status == 'pending' %}active{% endif %}"
+           href="{{ url_for('teacher.teacher_batches', status='pending') }}">待审核 ({{ status_counts.get(0, 0) }})</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if current_status == 'approved' %}active{% endif %}"
+           href="{{ url_for('teacher.teacher_batches', status='approved') }}">已通过 ({{ status_counts.get(1, 0) }})</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if current_status == 'rejected' %}active{% endif %}"
+           href="{{ url_for('teacher.teacher_batches', status='rejected') }}">已退回 ({{ status_counts.get(2, 0) }})</a>
+    </li>
+</ul>
+
+{% if batches %}
+<table class="table align-middle">
+    <thead>
+        <tr>
+            <th>批次简述</th>
+            <th>批次号</th>
+            <th>工种/等级</th>
+            <th>系部</th>
+            <th>报名时间</th>
+            <th>审核状态</th>
+            <th>操作</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for b in batches %}
+        <tr>
+            <td>
+                <div>{{ b.display_title }}</div>
+                {% if b.batch_keyword %}<small class="text-muted">关键词：{{ b.batch_keyword }}</small>{% endif %}
+            </td>
+            <td><small class="text-monospace">{{ b.batch_name }}</small></td>
+            <td>{{ b.skill.name if b.skill else '-' }} / {{ b.skill_level }}</td>
+            <td>{{ b.department.name if b.department else '-' }}</td>
+            <td>{{ b.start_time.strftime('%Y-%m-%d %H:%M') }}<br>至<br>{{ b.end_time.strftime('%Y-%m-%d %H:%M') }}</td>
+            <td>
+                {% if b.audit_status == 0 %}
+                    <span class="badge bg-warning text-dark">待审核</span>
+                {% elif b.audit_status == 1 %}
+                    <span class="badge bg-success">已通过</span>
+                {% elif b.audit_status == 2 %}
+                    <span class="badge bg-danger">已退回</span>
+                {% else %}
+                    <span class="badge bg-secondary">{{ b.audit_status }}</span>
+                {% endif %}
+                {% if b.audit_status == 2 and b.audit_comment %}
+                    <div class="mt-1"><small class="text-danger">批注：{{ b.audit_comment }}</small></div>
+                {% endif %}
+            </td>
+            <td>
+                {% if b.audit_status == 0 %}
+                    <span class="text-muted small">等待审核中</span>
+                {% elif b.audit_status == 1 %}
+                    <a href="{{ url_for('teacher.teacher_batch_classes', batch_id=b.id) }}" class="btn btn-sm btn-outline-info">关联班级</a>
+                    <a href="{{ url_for('admin.batch_reviews', batch_name=b.batch_name) }}" class="btn btn-sm btn-outline-primary">查看报名</a>
+                {% elif b.audit_status == 2 %}
+                    <a href="{{ url_for('teacher.teacher_edit_batch', batch_id=b.id) }}" class="btn btn-sm btn-warning">修改并重新提交</a>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% if total_pages > 1 %}
+<nav>
+    <ul class="pagination">
+        <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+            <a class="page-link" href="{{ url_for('teacher.teacher_batches', status=current_status, page=page-1) }}">« 上一页</a>
+        </li>
+        {% for p in range(1, total_pages + 1) %}
+        <li class="page-item {% if p == page %}active{% endif %}">
+            <a class="page-link" href="{{ url_for('teacher.teacher_batches', status=current_status, page=p) }}">{{ p }}</a>
+        </li>
+        {% endfor %}
+        <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+            <a class="page-link" href="{{ url_for('teacher.teacher_batches', status=current_status, page=page+1) }}">下一页 »</a>
+        </li>
+    </ul>
+</nav>
+{% endif %}
+{% else %}
+<p class="text-muted">暂无批次记录，点击上方"创建批次"开始创建。</p>
+{% endif %}
+{% endblock %}

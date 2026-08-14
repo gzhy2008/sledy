@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}{{ super() }} - 批次审核{% endblock %}
+{% block content %}
+<h2>批次审核</h2>
+<p class="text-muted">以下是班主任提交、等待审核的批次。审核通过后，班主任即可关联班级。</p>
+
+{% if batches %}
+<table class="table align-middle">
+    <thead>
+        <tr>
+            <th>批次简述</th>
+            <th>批次号</th>
+            <th>工种/等级</th>
+            <th>系部</th>
+            <th>创建人</th>
+            <th>报名时间</th>
+            <th>认定时间</th>
+            <th>操作</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for b in batches %}
+        <tr>
+            <td>
+                <div>{{ b.display_title }}</div>
+                {% if b.batch_keyword %}<small class="text-muted">关键词：{{ b.batch_keyword }}</small>{% endif %}
+            </td>
+            <td><small class="text-monospace">{{ b.batch_name }}</small></td>
+            <td>{{ b.skill.name if b.skill else '-' }} / {{ b.skill_level }}</td>
+            <td>{{ b.department.name if b.department else '-' }}</td>
+            <td>{{ b.creator_display_name }}</td>
+            <td>{{ b.start_time.strftime('%Y-%m-%d %H:%M') }}<br>至<br>{{ b.end_time.strftime('%Y-%m-%d %H:%M') }}</td>
+            <td>
+                {% if b.work_start_time %}
+                    {{ b.work_start_time.strftime('%Y-%m-%d %H:%M') }}<br>至<br>{{ b.work_end_time.strftime('%Y-%m-%d %H:%M') if b.work_end_time else '无' }}
+                {% else %}
+                    <span class="text-muted">未设置</span>
+                {% endif %}
+            </td>
+            <td>
+                <form method="post" action="{{ url_for('admin.review_batch', batch_id=b.id) }}" style="display:inline;">
+                    <input type="hidden" name="action" value="approve">
+                    <button type="submit" class="btn btn-sm btn-success">通过</button>
+                </form>
+                <button type="button" class="btn btn-sm btn-danger"
+                        data-bs-toggle="modal" data-bs-target="#rejectModal"
+                        data-batch-id="{{ b.id }}" data-batch-name="{{ b.batch_name }}">退回</button>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% if total_pages > 1 %}
+<nav>
+    <ul class="pagination">
+        <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+            <a class="page-link" href="{{ url_for('admin.batch_audits', page=page-1) }}">« 上一页</a>
+        </li>
+        {% for p in range(1, total_pages + 1) %}
+        <li class="page-item {% if p == page %}active{% endif %}">
+            <a class="page-link" href="{{ url_for('admin.batch_audits', page=p) }}">{{ p }}</a>
+        </li>
+        {% endfor %}
+        <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+            <a class="page-link" href="{{ url_for('admin.batch_audits', page=page+1) }}">下一页 »</a>
+        </li>
+    </ul>
+</nav>
+{% endif %}
+{% else %}
+<p class="text-muted">当前没有待审核的批次。</p>
+{% endif %}
+
+<!-- 退回批注模态框 -->
+<div class="modal fade" id="rejectModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="rejectForm" method="post">
+                <div class="modal-header">
+                    <h5 class="modal-title">退回批次</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p><strong>批次：</strong><span id="modalBatchName"></span></p>
+                    <input type="hidden" name="action" value="reject">
+                    <label class="form-label">批注（退回原因，必填）</label>
+                    <textarea name="comment" id="rejectComment" class="form-control" rows="3" required></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-danger">确认退回</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+var rejectModal = document.getElementById('rejectModal');
+rejectModal.addEventListener('show.bs.modal', function(event) {
+    var button = event.relatedTarget;
+    var batchId = button.getAttribute('data-batch-id');
+    var batchName = button.getAttribute('data-batch-name');
+    document.getElementById('modalBatchName').textContent = batchName;
+    document.getElementById('rejectComment').value = '';
+    var form = document.getElementById('rejectForm');
+    form.action = '/admin/batch/' + batchId + '/review';
+});
+</script>
+{% endblock %}

@@ -1,8 +1,17 @@
+import enum
+
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
 from datetime import datetime
 
 db = SQLAlchemy()
+
+
+class AuditStatus(enum.IntEnum):
+    """批次审核状态（整数枚举）"""
+    PENDING = 0    # 待审核
+    APPROVED = 1   # 已通过
+    REJECTED = 2   # 已退回
 
 # ---------- 用户表 ----------
 class User(UserMixin, db.Model):
@@ -133,9 +142,27 @@ class ExamBatch(db.Model):
     archived_at = db.Column(db.DateTime, nullable=True)
     is_locked = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    department_id = db.Column(db.Integer, db.ForeignKey('department.id'), nullable=True)
+    created_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    audit_status = db.Column(db.Integer, nullable=False, default=AuditStatus.APPROVED)
+    audit_comment = db.Column(db.String(256), default='')
     skill = db.relationship('Skill', backref='batches')
     classes = db.relationship('ClassGroup', secondary='batch_classes', backref='batches')
+    department = db.relationship('Department', backref='batches')
+    creator = db.relationship('User', backref='created_batches', foreign_keys=[created_by])
     
+    @property
+    def creator_display_name(self):
+        if not self.creator:
+            return '系统'
+        if self.creator.role == 'headteacher' and self.creator.head_teacher:
+            return self.creator.head_teacher.name
+        if self.creator.role == 'admin' and self.creator.admin_profile:
+            return self.creator.admin_profile.name
+        if self.creator.role == 'super_admin':
+            return '超级管理员'
+        return self.creator.username
+
     @property
     def display_title(self):
         parts = ['批次简述:']

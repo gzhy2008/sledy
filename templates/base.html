@@ -54,6 +54,7 @@
                 <!-- 班主任菜单 -->
                 {% elif current_user.role == 'headteacher' %}
                 <li class="nav-item"><a class="nav-link" href="{{ url_for('teacher.teacher_classes') }}">班级管理</a></li>
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('teacher.teacher_batches') }}">我的批次</a></li>
                 <li class="nav-item dropdown">
                 <a class="nav-link dropdown-toggle" href="#" id="htMoreDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                     更多

@@ -12,7 +12,7 @@ from flask_login import login_required, current_user
 from flask_mail import Message
 from werkzeug.security import generate_password_hash
 
-from models import db, User, UserProfile, ClassGroup, ExamBatch, Student, Department, batch_classes
+from models import db, User, UserProfile, ClassGroup, ExamBatch, Student, Department, batch_classes, AuditStatus
 from sqlalchemy.orm import joinedload
 from utils import validate_id_number_checksum, role_required
 from services import validate_phone, validate_password_strength
@@ -398,6 +398,7 @@ def student_dashboard():
             ExamBatch.end_time >= now,
             ExamBatch.is_archived == False,
             ExamBatch.is_locked == False,
+            ExamBatch.audit_status == AuditStatus.APPROVED,
             ClassGroup.id == profile.class_id
         ).options(joinedload(ExamBatch.skill)).all()
     else:
@@ -425,13 +426,15 @@ def student_dashboard():
             target_class_no = target_class.class_no
 
     available_batches = ExamBatch.query.filter(
-        ExamBatch.is_archived == False
+        ExamBatch.is_archived == False,
+        ExamBatch.audit_status == AuditStatus.APPROVED
     ).options(joinedload(ExamBatch.skill)).order_by(ExamBatch.start_time.desc()).all()
 
     if profile.class_id:
         expired_batches = ExamBatch.query.join(batch_classes).join(ClassGroup).filter(
             (ExamBatch.end_time < now) | (ExamBatch.is_locked == True),
             ExamBatch.is_archived == False,
+            ExamBatch.audit_status == AuditStatus.APPROVED,
             ClassGroup.id == profile.class_id
         ).options(joinedload(ExamBatch.skill)).all()
     else:
@@ -464,6 +467,9 @@ def apply_batch(batch_id):
         return redirect(url_for('student.student_dashboard'))
     if batch.is_locked:
         flash('该批次已被锁定，无法报名', 'danger')
+        return redirect(url_for('student.student_dashboard'))
+    if batch.audit_status != AuditStatus.APPROVED:
+        flash('该批次尚未通过审核，无法报名', 'danger')
         return redirect(url_for('student.student_dashboard'))
 
     profile = UserProfile.query.filter_by(user_id=current_user.id).first()

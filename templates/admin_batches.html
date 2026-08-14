@@ -12,6 +12,10 @@
 
 <!-- 状态筛选选项卡 -->
 <div class="status-tabs mb-3">
+  <a href="{{ url_for('admin.manage_batches', status='pending') }}" 
+    class="btn btn-sm {{ 'btn-info' if current_status == 'pending' else 'btn-outline-info' }}">待审核</a>
+  <a href="{{ url_for('admin.manage_batches', status='rejected') }}" 
+    class="btn btn-sm {{ 'btn-danger' if current_status == 'rejected' else 'btn-outline-danger' }}">已退回</a>
   <a href="{{ url_for('admin.manage_batches', status='active') }}" 
     class="btn btn-sm {{ 'btn-success' if current_status == 'active' else 'btn-outline-success' }}">进行中</a>
   <a href="{{ url_for('admin.manage_batches', status='expired') }}" 
@@ -61,10 +65,14 @@
     <tr>
       <th>批次名称</th>
       <th>工种/等级</th>
+      <th>系部</th>
       <th>报名时间</th>
       <th>认定时间</th>
+      {% if current_status == 'all' %}
       <th>状态</th>
-      <th>未审/总数</th>
+      {% endif %}
+      <th>未审</th>
+      <th>总数</th>
       <th>操作</th>
     </tr>
   </thead>
@@ -82,6 +90,7 @@
       </small>
     </td>
     <td>{{ b.skill.name }} / {{ b.skill_level }}</td>
+    <td>{{ b.department.name if b.department else '-' }}</td>
     <td>{{ b.start_time.strftime('%Y-%m-%d %H:%M') }}<br>至<br>{{ b.end_time.strftime('%Y-%m-%d %H:%M') }}</td>
     <td>
       {% if b.work_start_time %}
@@ -90,8 +99,13 @@
         <span class="text-muted">未设置</span>
       {% endif %}
     </td>
+    {% if current_status == 'all' %}
     <td>
-      {% if b.is_locked %}
+      {% if b.audit_status == 0 %}
+      <span class="badge bg-info text-dark">待审核</span>
+      {% elif b.audit_status == 2 %}
+      <span class="badge bg-danger" title="{{ b.audit_comment }}">已退回</span>
+      {% elif b.is_locked %}
       <span class="badge bg-dark">已锁定</span>
       {% elif b.is_archived %}
       <span class="badge bg-secondary">已归档</span>
@@ -101,6 +115,7 @@
       <span class="badge bg-warning">已截止</span>
       {% endif %}
     </td>
+    {% endif %}
     <td>
       {% set stats = batch_stats.get(b.id, (0, 0)) %}
       {% set pending = stats[0] %}
@@ -114,15 +129,24 @@
       {% else %}
         {% set status_class = 'batch-status-3' %}
       {% endif %}
-      <span title="待审核 {{ pending }} / 总报名 {{ total_students }}"
-        class="{{ status_class }}"
-        style="font-weight: bold;">
-        {{ pending }} / {{ total_students }}
-      </span>
+      <span title="待审核学生数" class="{{ status_class }}" style="font-weight: bold;">{{ pending }}</span>
     </td>
+    <td>{{ total_students }}</td>
     <td>
-      {% if current_status == 'archived' %}
+      {% if current_status == 'pending' %}
+      <!-- 待审核选项卡 -->
+      <a href="{{ url_for('admin.batch_audits') }}" class="btn btn-sm btn-info" title="前往批次审核页处理该批次">审核</a>
+      {% elif current_status == 'rejected' %}
+      <!-- 已退回选项卡 -->
+      <span class="text-muted small" title="{{ b.audit_comment }}">等待班主任重新提交</span>
+      {% elif current_status == 'archived' %}
       <!-- 已归档选项卡 -->
+      {% if b.audit_status == 1 and not b.is_locked %}
+      <form method="post" action="{{ url_for('admin.export_batch', batch=b.batch_name) }}" style="display:inline;" class="export-form">
+        <input type="hidden" name="export_code" class="export-code-field">
+        <button type="submit" class="btn btn-sm btn-outline-success" title="导出全部已通过学生资料">导出</button>
+      </form>
+      {% endif %}
       <div class="btn-group" style="position: static;">
         <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
           更多
@@ -139,6 +163,12 @@
       </div>
       {% elif current_status == 'all' %}
       <!-- 全部选项卡 -->
+      {% if b.audit_status == 1 and not b.is_locked %}
+      <form method="post" action="{{ url_for('admin.export_batch', batch=b.batch_name) }}" style="display:inline;" class="export-form">
+        <input type="hidden" name="export_code" class="export-code-field">
+        <button type="submit" class="btn btn-sm btn-outline-success" title="导出全部已通过学生资料">导出</button>
+      </form>
+      {% endif %}
       <div class="btn-group" style="position: static;">
         <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
           更多
@@ -149,6 +179,12 @@
       </div>
       {% elif current_status == 'expired' %}
       <!-- 已截止选项卡 -->
+      {% if b.audit_status == 1 and not b.is_locked %}
+      <form method="post" action="{{ url_for('admin.export_batch', batch=b.batch_name) }}" style="display:inline;" class="export-form">
+        <input type="hidden" name="export_code" class="export-code-field">
+        <button type="submit" class="btn btn-sm btn-outline-success" title="导出全部已通过学生资料">导出</button>
+      </form>
+      {% endif %}
       <div class="btn-group" style="position: static;">
         <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
           更多
@@ -178,10 +214,12 @@
       {% else %}
       <!-- 进行中选项卡（完整操作） -->
       <a href="{{ url_for('admin.batch_reviews', batch_name=b.batch_name) }}" class="btn btn-sm btn-primary" title="查看该批次的报名">查看</a>
+      {% if b.audit_status == 1 and not b.is_locked %}
       <form method="post" action="{{ url_for('admin.export_batch', batch=b.batch_name) }}" style="display:inline;" class="export-form">
         <input type="hidden" name="export_code" class="export-code-field">
         <button type="submit" class="btn btn-sm btn-outline-success" title="导出全部已通过学生资料">导出</button>
       </form>
+      {% endif %}
       <div class="btn-group" style="position: static;">
         <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
           更多

@@ -13,7 +13,8 @@
       <th>班级名称</th>
       <th>班级号</th>
       <th>系部</th>
-      <th>已审/总数</th>
+      <th>已审</th>
+      <th>总数</th>
       <th>操作</th>
     </tr>
   </thead>
@@ -30,7 +31,11 @@
       <td>{{ c.department.name if c.department else '-' }}</td>
       <td>
         {% set stats = class_stats.get(c.id, (0, 0)) %}
-        {{ stats[0] }}/{{ stats[1] }}
+        {{ stats[0] }}
+      </td>
+      <td>
+        {% set stats = class_stats.get(c.id, (0, 0)) %}
+        {{ stats[1] }}
       </td>
       <td>
         <a href="{{ url_for('teacher.teacher_profiles', class_id=c.id) }}" class="btn btn-sm btn-primary">审核学生档案</a>

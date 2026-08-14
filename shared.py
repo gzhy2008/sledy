@@ -6,14 +6,16 @@ import os
 import re
 import time
 import random
+import string
 import magic
 import logging
+from datetime import datetime
 from collections import defaultdict
 from flask import current_app, session, request
 from flask_login import current_user
 from flask_mail import Message
 from PIL import Image
-from models import db, Student, UserProfile, HeadTeacher, ClassGroup
+from models import db, Student, UserProfile, HeadTeacher, ClassGroup, Skill, ExamBatch
 from services import ROLE_NAMES, mask_email
 
 
@@ -137,6 +139,31 @@ def save_file(file, id_number, suffix):
     filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
     file.save(filepath)
     return filename
+
+
+# ===================== 批次号生成 =====================
+
+def generate_batch_name(skill_id):
+    """生成唯一批次号并递增工种期数（行锁）。返回 (batch_name, new_issue)，失败返回 (None, None)。"""
+    skill = db.session.query(Skill).filter_by(id=int(skill_id)).with_for_update().first()
+    if not skill:
+        return None, None
+    new_issue = skill.issue_number + 1
+    date_str = datetime.now().strftime('%Y%m%d')
+
+    def _make():
+        code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=5))
+        return f"{date_str}{skill.id}{new_issue}{code}"
+
+    batch_name = _make()
+    retry = 0
+    while ExamBatch.query.filter_by(batch_name=batch_name).first() and retry < 3:
+        batch_name = _make()
+        retry += 1
+    if retry == 3 and ExamBatch.query.filter_by(batch_name=batch_name).first():
+        return None, None
+    skill.issue_number = new_issue
+    return batch_name, new_issue
 
 
 # ===================== 邮件服务 =====================

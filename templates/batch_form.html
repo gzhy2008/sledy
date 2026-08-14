@@ -52,6 +52,19 @@
                 </div>
             </div>
 
+            <!-- 第二行半：所属系部 -->
+            <div class="row mb-3">
+                <div class="col-6">
+                    <label for="department_id" class="form-label">所属系部</label>
+                    <select name="department_id" id="department_id" class="form-select" required>
+                        <option value="">请选择系部</option>
+                        {% for d in departments %}
+                        <option value="{{ d.id }}" {% if form and form.get('department_id') == d.id|string %}selected{% endif %}>{{ d.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
             <!-- 第三行：开始时间 + 结束时间（各占一半） -->
             <div class="row mb-4">
                 <div class="col-6">

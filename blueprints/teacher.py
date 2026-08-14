@@ -14,14 +14,15 @@ from flask_mail import Message
 from werkzeug.security import generate_password_hash
 
 from sqlalchemy.orm import joinedload
-from models import db, User, UserProfile, ClassGroup, HeadTeacher, ExamBatch, Student, AdminProfile, Department, batch_classes
+from models import db, User, UserProfile, ClassGroup, HeadTeacher, ExamBatch, Student, AdminProfile, Department, batch_classes, Skill, AuditStatus
 from utils import validate_id_number_checksum, role_required
 from services import validate_phone, generate_random_password
 from shared import (
     validate_image, validate_other_file, validate_photo,
     save_file, revoke_student_registrations_and_notify,
     get_admin_department_ids, check_rate_limit, _login_attempts,
-    notify_student, audit_log, send_credentials_notification
+    notify_student, audit_log, send_credentials_notification,
+    generate_batch_name, notify_class_students
 )
 
 teacher_bp = Blueprint('teacher', __name__)
@@ -731,4 +732,261 @@ def teacher_reset_student_profile(profile_id):
 
     flash(f'已重置学生 {profile.name} 的档案状态为待审核，通知已发送。', 'success')
     return redirect(request.referrer or url_for('teacher.teacher_profiles'))
+
+
+# ==================== 班主任批次管理 ====================
+
+@teacher_bp.route('/teacher/batches')
+@login_required
+@role_required('headteacher')
+def teacher_batches():
+    status = request.args.get('status', 'all')
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
+
+    query = ExamBatch.query.filter_by(created_by=current_user.id).options(
+        joinedload(ExamBatch.skill),
+        joinedload(ExamBatch.department)
+    )
+    status_map = {
+        'pending': AuditStatus.PENDING,
+        'approved': AuditStatus.APPROVED,
+        'rejected': AuditStatus.REJECTED,
+    }
+    if status in status_map:
+        query = query.filter(ExamBatch.audit_status == status_map[status])
+
+    total = query.count()
+    total_pages = (total + per_page - 1) // per_page
+    if page < 1: page = 1
+    if total_pages > 0 and page > total_pages: page = total_pages
+
+    batches = query.order_by(ExamBatch.created_at.desc()).limit(per_page).offset((page - 1) * per_page).all()
+
+    status_counts = dict(
+        db.session.query(ExamBatch.audit_status, db.func.count(ExamBatch.id))
+        .filter(ExamBatch.created_by == current_user.id)
+        .group_by(ExamBatch.audit_status).all()
+    )
+
+    return render_template('teacher_batches.html',
+                           batches=batches,
+                           current_status=status,
+                           status_counts=status_counts,
+                           page=page,
+                           total_pages=total_pages,
+                           total=total)
+
+
+@teacher_bp.route('/teacher/batch/create', methods=['GET', 'POST'])
+@login_required
+@role_required('headteacher')
+def teacher_create_batch():
+    departments = current_user.head_teacher.departments
+    if not departments:
+        flash('您尚未选择所属系部，请先在账户管理中设置系部', 'warning')
+        return redirect(url_for('teacher.teacher_account'))
+
+    skills = Skill.query.filter(Skill.is_locked == False).all()
+
+    if request.method == 'POST':
+        skill_id = request.form.get('skill_id', '').strip()
+        skill_level = request.form.get('skill_level', '').strip()
+        department_id = request.form.get('department_id', '').strip()
+        start_time = request.form.get('start_time', '').strip()
+        end_time = request.form.get('end_time', '').strip()
+        work_start_time = request.form.get('work_start_time', '').strip()
+        work_end_time = request.form.get('work_end_time', '').strip()
+        batch_keyword = request.form.get('batch_keyword', '').strip()[:10]
+
+        errors = []
+        if not skill_id: errors.append('请选择工种')
+        if not skill_level: errors.append('等级不能为空')
+        if not department_id: errors.append('请选择系部')
+        elif int(department_id) not in [d.id for d in departments]:
+            errors.append('无效的系部选择')
+        if not start_time or not end_time: errors.append('报名起止时间不能为空')
+        if not work_start_time or not work_end_time: errors.append('认定工作起止时间不能为空')
+        try:
+            start_dt = datetime.strptime(start_time, '%Y-%m-%dT%H:%M')
+            end_dt = datetime.strptime(end_time, '%Y-%m-%dT%H:%M')
+            work_start_dt = datetime.strptime(work_start_time, '%Y-%m-%dT%H:%M')
+            work_end_dt = datetime.strptime(work_end_time, '%Y-%m-%dT%H:%M')
+            if start_dt.date() < datetime.now().date():
+                errors.append('报名开始时间不能早于今天')
+            if start_dt >= end_dt:
+                errors.append('报名开始时间必须早于报名截止时间')
+            if work_start_dt >= work_end_dt:
+                errors.append('认定开始时间必须早于认定结束时间')
+            if work_start_dt < end_dt:
+                errors.append('认定开始时间不能早于报名截止时间')
+            if work_start_dt.date() < datetime.now().date():
+                errors.append('认定开始时间不能早于今天')
+        except ValueError:
+            errors.append('时间格式错误')
+
+        if errors:
+            for e in errors: flash(e, 'danger')
+            return render_template('teacher_batch_form.html', form=request.form, departments=departments, skills=skills)
+
+        batch_name, new_issue = generate_batch_name(skill_id)
+        if not batch_name:
+            flash('批次号生成失败，请重试', 'danger')
+            return redirect(url_for('teacher.teacher_create_batch'))
+
+        batch = ExamBatch(
+            batch_name=batch_name,
+            batch_keyword=batch_keyword,
+            skill_id=int(skill_id),
+            skill_level=skill_level,
+            start_time=start_dt,
+            end_time=end_dt,
+            work_start_time=work_start_dt,
+            work_end_time=work_end_dt,
+            issue_number=new_issue,
+            department_id=int(department_id),
+            created_by=current_user.id,
+            audit_status=AuditStatus.PENDING,
+            audit_comment=''
+        )
+        db.session.add(batch)
+        db.session.commit()
+
+        audit_log('CREATE_BATCH_BY_TEACHER', f'{batch_name}({current_user.username})')
+        flash(f'批次创建成功！批次号：{batch_name}。已提交业务管理员审核。', 'success')
+        return redirect(url_for('teacher.teacher_batches'))
+
+    return render_template('teacher_batch_form.html', form=None, departments=departments, skills=skills)
+
+
+@teacher_bp.route('/teacher/batch/<int:batch_id>/edit', methods=['GET', 'POST'])
+@login_required
+@role_required('headteacher')
+def teacher_edit_batch(batch_id):
+    batch = ExamBatch.query.get_or_404(batch_id)
+    if batch.created_by != current_user.id:
+        flash('无权操作该批次', 'danger')
+        return redirect(url_for('teacher.teacher_batches'))
+    if batch.audit_status != AuditStatus.REJECTED:
+        flash('仅已退回的批次可以修改并重新提交', 'warning')
+        return redirect(url_for('teacher.teacher_batches'))
+
+    departments = current_user.head_teacher.departments
+    skills = Skill.query.filter(Skill.is_locked == False).all()
+
+    if request.method == 'POST':
+        skill_id = request.form.get('skill_id', '').strip()
+        skill_level = request.form.get('skill_level', '').strip()
+        department_id = request.form.get('department_id', '').strip()
+        start_time = request.form.get('start_time', '').strip()
+        end_time = request.form.get('end_time', '').strip()
+        work_start_time = request.form.get('work_start_time', '').strip()
+        work_end_time = request.form.get('work_end_time', '').strip()
+        batch_keyword = request.form.get('batch_keyword', '').strip()[:10]
+
+        errors = []
+        if not skill_id: errors.append('请选择工种')
+        if not skill_level: errors.append('等级不能为空')
+        if not department_id: errors.append('请选择系部')
+        elif int(department_id) not in [d.id for d in departments]:
+            errors.append('无效的系部选择')
+        if not start_time or not end_time: errors.append('报名起止时间不能为空')
+        if not work_start_time or not work_end_time: errors.append('认定工作起止时间不能为空')
+        try:
+            start_dt = datetime.strptime(start_time, '%Y-%m-%dT%H:%M')
+            end_dt = datetime.strptime(end_time, '%Y-%m-%dT%H:%M')
+            work_start_dt = datetime.strptime(work_start_time, '%Y-%m-%dT%H:%M')
+            work_end_dt = datetime.strptime(work_end_time, '%Y-%m-%dT%H:%M')
+            if start_dt.date() < datetime.now().date():
+                errors.append('报名开始时间不能早于今天')
+            if start_dt >= end_dt:
+                errors.append('报名开始时间必须早于报名截止时间')
+            if work_start_dt >= work_end_dt:
+                errors.append('认定开始时间必须早于认定结束时间')
+            if work_start_dt < end_dt:
+                errors.append('认定开始时间不能早于报名截止时间')
+            if work_start_dt.date() < datetime.now().date():
+                errors.append('认定开始时间不能早于今天')
+        except ValueError:
+            errors.append('时间格式错误')
+
+        if errors:
+            for e in errors: flash(e, 'danger')
+            return render_template('teacher_batch_form.html', form=request.form, departments=departments, skills=skills, batch=batch)
+
+        batch.skill_id = int(skill_id)
+        batch.skill_level = skill_level
+        batch.department_id = int(department_id)
+        batch.start_time = start_dt
+        batch.end_time = end_dt
+        batch.work_start_time = work_start_dt
+        batch.work_end_time = work_end_dt
+        batch.batch_keyword = batch_keyword
+        batch.audit_status = AuditStatus.PENDING
+        batch.audit_comment = ''
+        db.session.commit()
+
+        audit_log('RESUBMIT_BATCH_BY_TEACHER', f'{batch.batch_name}({current_user.username})')
+        flash('批次已修改并重新提交审核', 'success')
+        return redirect(url_for('teacher.teacher_batches'))
+
+    return render_template('teacher_batch_form.html', form=None, departments=departments, skills=skills, batch=batch)
+
+
+@teacher_bp.route('/teacher/batch/<int:batch_id>/classes', methods=['GET', 'POST'])
+@login_required
+@role_required('headteacher')
+def teacher_batch_classes(batch_id):
+    batch = ExamBatch.query.get_or_404(batch_id)
+    if batch.created_by != current_user.id:
+        flash('无权操作该批次', 'danger')
+        return redirect(url_for('teacher.teacher_batches'))
+    if batch.audit_status != AuditStatus.APPROVED:
+        flash('批次审核通过后才能关联班级', 'warning')
+        return redirect(url_for('teacher.teacher_batches'))
+    if batch.is_archived or batch.is_locked:
+        flash('批次已归档或锁定，无法关联班级', 'danger')
+        return redirect(url_for('teacher.teacher_batches'))
+
+    # 班主任自己的、且属于该批次系部的班级
+    own_classes = [c for c in current_user.head_teacher.classes if c.department_id == batch.department_id]
+
+    if request.method == 'POST':
+        action = request.form.get('action')
+        class_id = request.form.get('class_id', type=int)
+        cls = ClassGroup.query.get(class_id) if class_id else None
+        if cls is None or cls not in own_classes:
+            flash('无效的班级或该班级不属于您', 'danger')
+        elif action == 'add':
+            if cls in batch.classes:
+                flash('该班级已关联', 'warning')
+            else:
+                batch.classes.append(cls)
+                db.session.commit()
+                notify_class_students(cls, batch, 'add')
+                flash(f'已关联班级 {cls.name}', 'success')
+        elif action == 'remove':
+            if cls not in batch.classes:
+                flash('该班级未关联', 'warning')
+            else:
+                student_count = Student.query.filter_by(batch_id=batch.id).join(
+                    UserProfile, UserProfile.user_id == Student.user_id
+                ).filter(UserProfile.class_id == cls.id).count()
+                if student_count > 0:
+                    flash(f'班级 {cls.name} 已有 {student_count} 名学生报名该批次，无法移除', 'danger')
+                else:
+                    batch.classes.remove(cls)
+                    db.session.commit()
+                    notify_class_students(cls, batch, 'remove')
+                    flash(f'已移除班级 {cls.name}', 'success')
+        else:
+            flash('无效操作', 'danger')
+        return redirect(url_for('teacher.teacher_batch_classes', batch_id=batch.id))
+
+    linked_classes = batch.classes
+    unlinked_classes = [c for c in own_classes if c not in linked_classes]
+    return render_template('teacher_batch_classes.html',
+                           batch=batch,
+                           linked_classes=linked_classes,
+                           unlinked_classes=unlinked_classes)
 

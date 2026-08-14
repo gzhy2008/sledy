@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}{{ super() }} - 创建批次{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-7">
+        <h2>{% if batch %}修改批次{% else %}创建认定批次{% endif %}</h2>
+        <hr>
+        {% if batch and batch.audit_status == 2 and batch.audit_comment %}
+        <div class="alert alert-danger">
+            <strong>业务管理员批注：</strong>{{ batch.audit_comment }}
+            <div class="small mt-1">请根据批注修改批次信息后重新提交审核。</div>
+        </div>
+        {% endif %}
+        <div class="alert alert-light border mb-4">
+            <h5>📝 创建说明</h5>
+            <ul class="mb-0 small">
+                <li><strong>批次号</strong>：系统自动生成，无需手动输入。</li>
+                <li><strong>系部</strong>：批次归属的系部，决定由哪位普通业务管理员审核。</li>
+                <li><strong>审核</strong>：创建后需业务管理员审核，审核通过后您才能关联班级。</li>
+            </ul>
+        </div>
+
+        <form method="post" action="{% if batch %}{{ url_for('teacher.teacher_edit_batch', batch_id=batch.id) }}{% else %}{{ url_for('teacher.teacher_create_batch') }}{% endif %}">
+            <div class="row mb-3">
+                <div class="col-12">
+                    <label for="batch_keyword" class="form-label">批次关键词 <span class="text-muted">(选填，≤10字)</span></label>
+                    <input type="text" name="batch_keyword" id="batch_keyword" class="form-control"
+                           placeholder="如 春季电工" maxlength="10"
+                           value="{{ form.get('batch_keyword', '') if form else (batch.batch_keyword if batch else '') }}">
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <div class="col-6">
+                    <label for="skill_id" class="form-label">拟认定工种</label>
+                    <select name="skill_id" id="skill_id" class="form-select" required>
+                        <option value="">请选择工种</option>
+                        {% for s in skills %}
+                        <option value="{{ s.id }}" {% if (form and form.get('skill_id') == s.id|string) or (not form and batch and batch.skill_id == s.id) %}selected{% endif %}>{{ s.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-6">
+                    <label for="skill_level" class="form-label">等级</label>
+                    <select name="skill_level" id="skill_level" class="form-select" required>
+                        <option value="">请选择</option>
+                        {% for lv in ['五级(初级)', '四级(中级)', '三级(高级)', '二级(技师)', '一级(高级技师)'] %}
+                        <option value="{{ lv }}" {% if (form and form.get('skill_level') == lv) or (not form and batch and batch.skill_level == lv) %}selected{% endif %}>{{ lv }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <div class="col-6">
+                    <label for="department_id" class="form-label">所属系部</label>
+                    <select name="department_id" id="department_id" class="form-select" required>
+                        <option value="">请选择系部</option>
+                        {% for d in departments %}
+                        <option value="{{ d.id }}" {% if (form and form.get('department_id') == d.id|string) or (not form and batch and batch.department_id == d.id) %}selected{% endif %}>{{ d.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <div class="col-6">
+                    <label for="start_time" class="form-label">报名开始时间</label>
+                    <input type="datetime-local" name="start_time" id="start_time" class="form-control" required
+                           value="{{ form.get('start_time', '') if form else (batch.start_time.strftime('%Y-%m-%dT%H:%M') if batch else '') }}">
+                </div>
+                <div class="col-6">
+                    <label for="end_time" class="form-label">报名截止时间</label>
+                    <input type="datetime-local" name="end_time" id="end_time" class="form-control" required
+                           value="{{ form.get('end_time', '') if form else (batch.end_time.strftime('%Y-%m-%dT%H:%M') if batch else '') }}">
+                </div>
+            </div>
+            <div class="row mb-4">
+                <div class="col-6">
+                    <label for="work_start_time" class="form-label">认定工作开始时间</label>
+                    <input type="datetime-local" name="work_start_time" id="work_start_time" class="form-control" required
+                           value="{{ form.get('work_start_time', '') if form else (batch.work_start_time.strftime('%Y-%m-%dT%H:%M') if batch and batch.work_start_time else '') }}">
+                </div>
+                <div class="col-6">
+                    <label for="work_end_time" class="form-label">认定工作结束时间</label>
+                    <input type="datetime-local" name="work_end_time" id="work_end_time" class="form-control" required
+                           value="{{ form.get('work_end_time', '') if form else (batch.work_end_time.strftime('%Y-%m-%dT%H:%M') if batch and batch.work_end_time else '') }}">
+                </div>
+            </div>
+
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                <a href="{{ url_for('teacher.teacher_batches') }}" class="btn btn-secondary me-md-2">取消</a>
+                <button type="submit" class="btn btn-primary">{% if batch %}重新提交审核{% else %}创建并提交审核{% endif %}</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

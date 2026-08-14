@@ -99,7 +99,7 @@
                             {% if b.is_archived %}<span class="badge bg-secondary ms-1">已归档</span>
                             {% elif b.is_locked %}<span class="badge bg-dark ms-1">已锁定</span>
                             {% elif b.end_time < now %}<span class="badge bg-light text-dark ms-1">已截止</span>
-                            {% elif b.start_time <= now %}<span class="badge bg-warning text-dark ms-1">报名中</span>
+                            {% elif b.start_time <= now and b.classes %}<span class="badge bg-warning text-dark ms-1">报名中</span>
                             {% endif %}
                         </div>
                         <div class="card-meta">{{ b.display_title }}</div>

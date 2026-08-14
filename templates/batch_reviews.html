@@ -170,7 +170,7 @@
 {% else %}
 <div class="d-flex align-items-center mt-3 gap-3">
     <a href="{{ url_for('admin.manage_batches') }}" class="btn btn-secondary">← 返回批次管理</a>
-    {% if current_user.role in ['admin', 'super_admin'] and current_status == 'approved' and students %}
+    {% if current_user.role in ['admin', 'super_admin'] and current_status == 'approved' and students and batch.audit_status == 1 and not batch.is_locked %}
     <button type="button" class="btn btn-purple" onclick="openExportModal()">
         📦 导出选中资料 (<span id="exportCount">{{ students|length }}</span>)
     </button>
@@ -178,7 +178,7 @@
 </div>
 {% endif %}
 
-{% if current_user.role in ['admin', 'super_admin'] and current_status == 'approved' and students %}
+{% if current_user.role in ['admin', 'super_admin'] and current_status == 'approved' and students and batch.audit_status == 1 and not batch.is_locked %}
 <form id="exportForm" method="post" action="{{ url_for('admin.export_batch', batch=batch.batch_name) }}" style="display:none;">
     <input type="hidden" name="export_code" id="exportCodeField">
     {% for s in students %}
@@ -374,7 +374,7 @@ function submitCompare() {
     btn.disabled = true;
     btn.innerHTML = '比对中...';
 
-    fetch('{{ url_for("teacher_batch_compare_ids", batch_name=batch.batch_name) }}', {
+    fetch('{{ url_for("teacher.teacher_batch_compare_ids", batch_name=batch.batch_name) }}', {
       method: 'POST',
       body: formData
     }).then(res => {

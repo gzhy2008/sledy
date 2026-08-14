@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}{{ super() }} - 关联班级{% endblock %}
+{% block content %}
+<h2>批次关联班级</h2>
+<div class="card mb-4">
+    <div class="card-body">
+        <strong>{{ batch.display_title }}</strong>
+        <div class="small text-muted">
+            批次号：{{ batch.batch_name }} ｜ 工种：{{ batch.skill.name if batch.skill else '-' }} ｜ 等级：{{ batch.skill_level }}
+            ｜ 系部：{{ batch.department.name if batch.department else '-' }}
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header"><strong>已关联班级</strong></div>
+            <ul class="list-group list-group-flush">
+                {% for c in linked_classes %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    {{ c.name }} ({{ c.class_no }})
+                    <form method="post" action="{{ url_for('teacher.teacher_batch_classes', batch_id=batch.id) }}" style="display:inline;">
+                        <input type="hidden" name="action" value="remove">
+                        <input type="hidden" name="class_id" value="{{ c.id }}">
+                        <button type="submit" class="btn btn-sm btn-outline-danger">移除</button>
+                    </form>
+                </li>
+                {% else %}
+                <li class="list-group-item text-muted">暂无关联班级</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header"><strong>可关联的班级（我的班级）</strong></div>
+            <ul class="list-group list-group-flush">
+                {% for c in unlinked_classes %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    {{ c.name }} ({{ c.class_no }})
+                    <form method="post" action="{{ url_for('teacher.teacher_batch_classes', batch_id=batch.id) }}" style="display:inline;">
+                        <input type="hidden" name="action" value="add">
+                        <input type="hidden" name="class_id" value="{{ c.id }}">
+                        <button type="submit" class="btn btn-sm btn-outline-success">关联</button>
+                    </form>
+                </li>
+                {% else %}
+                <li class="list-group-item text-muted">该系部下没有可关联的班级</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+
+<a href="{{ url_for('teacher.teacher_batches') }}" class="btn btn-secondary mt-3">← 返回我的批次</a>
+{% endblock %}
