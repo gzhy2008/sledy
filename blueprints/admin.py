@@ -192,7 +192,7 @@ def create_department():
 
         if not name:
             flash('系部名称不能为空', 'danger')
-        elif Department.query.filter_by(name=name).first():
+        elif Department.query.filter_by(name=name, is_deleted=False).first():
             flash('系部已存在', 'danger')
         else:
             db.session.add(Department(name=name))
@@ -213,7 +213,7 @@ def edit_department(dept_id):
         name = request.form.get('name', '').strip()
         if not name:
             flash('系部名称不能为空', 'danger')
-        elif Department.query.filter(Department.name == name, Department.id != dept_id).first():
+        elif Department.query.filter(Department.name == name, Department.id != dept_id, Department.is_deleted == False).first():
             flash('系部名称重复', 'danger')
         else:
             dept.name = name
@@ -231,6 +231,7 @@ def delete_department(dept_id):
     if dept.classes:
         flash('该系部下有班级，无法删除', 'danger')
     else:
+        dept.name = f'{dept.name}#del{dept.id}'   # 重命名释放唯一名称，允许重建同名系部
         dept.is_deleted = True
         db.session.commit()
         flash('系部已标记为删除', 'success')
