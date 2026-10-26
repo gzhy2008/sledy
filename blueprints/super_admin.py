@@ -798,12 +798,6 @@ def theme_settings():
                 else:
                     db.session.add(SiteConfig(key='site_logo', value=filename))
 
-        # 更新超管邮箱
-        sa_email = request.form.get("sa_email", "").strip()
-        sa_user = User.query.filter_by(role="super_admin").first()
-        if sa_user and sa_email:
-            sa_user.email = sa_email
-
         db.session.commit()
         flash('主题配置已更新', 'success')
         return redirect(url_for('super_admin.theme_settings'))
@@ -814,8 +808,7 @@ def theme_settings():
         secondary=configs.get('theme_secondary', '#764ba2'),
         site_title=configs.get('site_title', ''),
         site_subtitle=configs.get('site_subtitle', ''),
-        site_logo=configs.get('site_logo', ''),
-        sa_email=User.query.filter_by(role='super_admin').first().email if User.query.filter_by(role='super_admin').first() else '')
+        site_logo=configs.get('site_logo', ''))
 
 
 
@@ -933,6 +926,8 @@ def super_admin_profile():
             flash('邮箱格式不正确', 'danger')
         elif not code:
             flash('请输入验证码', 'danger')
+        elif User.query.filter(User.email == email, User.id != current_user.id).first():
+            flash('该邮箱已被其他用户使用', 'danger')
         else:
             saved = session.get('sa_email_verify_code')
             if not saved or code != saved:
@@ -948,6 +943,34 @@ def super_admin_profile():
                 flash('邮箱已更新并验证', 'success')
         return redirect(url_for('super_admin.super_admin_profile'))
     return render_template('super_admin_profile.html', user=current_user)
+
+
+@super_admin_bp.route('/super_admin/send_email_code', methods=['POST'])
+@login_required
+@role_required('super_admin')
+def super_admin_send_email_code():
+    email = request.form.get('email', '').strip()
+    if not email or '@' not in email:
+        return jsonify({'status': 'error', 'msg': '邮箱格式不正确'})
+    if User.query.filter(User.email == email, User.id != current_user.id).first():
+        return jsonify({'status': 'error', 'msg': '该邮箱已被其他用户使用'})
+    last_time = session.get('send_code_time', 0)
+    if time.time() - last_time < 60:
+        return jsonify({'status': 'error', 'msg': '发送过于频繁，请60秒后再试'})
+    code = ''.join(random.choices('0123456789', k=6))
+    session['sa_email_verify_code'] = code
+    session['sa_email_verify_code_time'] = time.time()
+    session['send_code_time'] = time.time()
+    mail = current_app.extensions['mail']
+    msg = Message('技能认定资料收集系统 - 邮箱验证码', recipients=[email])
+    msg.charset = 'utf-8'
+    msg.body = f'您的邮箱验证码是：{code}，有效期5分钟，请勿泄露。'
+    try:
+        mail.send(msg)
+        return jsonify({'status': 'ok', 'msg': f'验证码已发往 {mask_email(email)}'})
+    except Exception as e:
+        current_app.logger.error(f'验证码发送失败：{e}')
+        return jsonify({'status': 'error', 'msg': '邮件发送失败，请检查服务器邮箱配置'})
 
 
 @super_admin_bp.route('/super_admin/account', methods=['GET', 'POST'])

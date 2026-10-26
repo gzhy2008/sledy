@@ -13,19 +13,79 @@
                     <input type="text" class="form-control" value="{{ user.username }}" readonly>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">邮箱</label>
-                    <input type="text" class="form-control" value="{{ user.email or '未设置' }}" readonly>
-                </div>
-                <div class="mb-3">
                     <label class="form-label">角色</label>
                     <input type="text" class="form-control" value="超级管理员" readonly>
                 </div>
-                <div class="alert alert-info">
-                    修改邮箱请编辑服务器上的 <code>.env</code> 配置文件，配置成功后才能发送邮件。
-                </div>
-                <a href="{{ url_for('super_admin.super_admin_dashboard') }}" class="btn btn-secondary">返回</a>
             </div>
         </div>
+        <div class="card mt-3">
+            <div class="card-header"><strong>邮箱设置</strong></div>
+            <div class="card-body">
+                <form method="post">
+                    <div class="mb-3">
+                        <label class="form-label">邮箱（用于接收系统验证码和通知）</label>
+                        <div class="input-group">
+                            <input type="email" name="email" class="form-control" value="{{ user.email or '' }}" placeholder="输入新邮箱" required>
+                            <button type="button" id="sendCodeBtn" class="btn btn-outline-primary" onclick="sendEmailCode()">发送验证码</button>
+                        </div>
+                        <div class="form-text">修改后，导出验证码、密码修改通知等系统邮件将发送到此邮箱。</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">验证码</label>
+                        <input type="text" name="code" class="form-control" maxlength="6" placeholder="输入6位验证码" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">保存邮箱</button>
+                </form>
+            </div>
+        </div>
+        <a href="{{ url_for('super_admin.super_admin_dashboard') }}" class="btn btn-secondary mt-3">返回</a>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+function sendEmailCode() {
+    var email = document.querySelector('input[name="email"]').value.trim();
+    if (!email || email.indexOf('@') < 0) {
+        alert('请先输入正确的邮箱地址');
+        return;
+    }
+    var btn = document.getElementById('sendCodeBtn');
+    btn.disabled = true;
+    btn.innerText = '发送中...';
+    fetch('{{ url_for("super_admin.super_admin_send_email_code") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: 'email=' + encodeURIComponent(email)
+    }).then(function(r) { return r.json(); }).then(function(d) {
+        alert(d.msg);
+        if (d.status === 'ok') {
+            var sec = 60;
+            btn.innerText = sec + '秒后重发';
+            var timer = setInterval(function() {
+                sec--;
+                if (sec <= 0) {
+                    clearInterval(timer);
+                    btn.disabled = false;
+                    btn.innerText = '发送验证码';
+                } else {
+                    btn.innerText = sec + '秒后重发';
+                }
+            }, 1000);
+        } else {
+            btn.disabled = false;
+            btn.innerText = '发送验证码';
+        }
+    }).catch(function() {
+        btn.disabled = false;
+        btn.innerText = '发送验证码';
+        alert('请求失败，请重试');
+    });
+}
+</script>
 {% endblock %}
