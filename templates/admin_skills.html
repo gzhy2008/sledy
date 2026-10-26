@@ -20,6 +20,7 @@
 <table class="table">
     <thead>
         <tr>
+            <th style="width:60px;">序号</th>
             <th>工种名称</th>
             <th>状态</th>
             <th>操作</th>
@@ -28,6 +29,7 @@
     <tbody>
         {% for s in skills %}
         <tr>
+            <td>{{ loop.index }}</td>
             <td>{{ s.name }}</td>
             <td>
                 {% if s.is_locked %}
