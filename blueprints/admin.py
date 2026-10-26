@@ -294,7 +294,8 @@ def edit_skill(skill_id):
             db.session.commit()
             flash('工种名称已更新', 'success')
             return redirect(url_for('admin.manage_skills'))
-            return render_template('skill_form.html', skill=skill)
+
+    return render_template('skill_form.html', skill=skill)
 
 #------------------
 @admin_bp.route('/admin/skills/toggle_lock/<int:skill_id>', methods=['POST'])

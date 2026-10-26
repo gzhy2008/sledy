@@ -17,7 +17,7 @@ class AuditStatus(enum.IntEnum):
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(64), unique=True, nullable=False)
-    password_hash = db.Column(db.String(128), nullable=False)
+    password_hash = db.Column(db.String(255), nullable=False)
     email = db.Column(db.String(120), default='')
     email_verified = db.Column(db.Boolean, default=False)
     reset_note = db.Column(db.String(256), default='')

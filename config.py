@@ -1,5 +1,6 @@
 import os
 import secrets
+from urllib.parse import quote_plus
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 SECRET_KEY_FILE = os.path.join(BASE_DIR, 'secret_key')
@@ -17,19 +18,20 @@ def _get_secret_key():
         f.write(key)
     return key
 
+
 class Config:
     # 优先环境变量，否则从文件读取或生成后持久化（避免重启丢失 session）
     SECRET_KEY = _get_secret_key()
-    # 先用 SQLite 快速跑通，以后改 MySQL 只需改这行
+    # 数据库连接：通过环境变量 DATABASE_URL（.env）配置；未配置时默认 SQLite
     SQLALCHEMY_DATABASE_URI = os.environ.get(
         'DATABASE_URL',
         'sqlite:///' + os.path.join(BASE_DIR, 'data.db')
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     # 存储目录（可通过环境变量覆盖，适合生产环境挂载独立磁盘）
-    UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER', os.path.join(BASE_DIR, 'uploads'))
-    EXPORT_FOLDER = os.environ.get('EXPORT_FOLDER', os.path.join(BASE_DIR, 'exports'))
-    LOG_FOLDER = os.environ.get('LOG_FOLDER', os.path.join(BASE_DIR, 'logs'))
+    UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER', '/storage/sledy_data/uploads')
+    EXPORT_FOLDER = os.environ.get('EXPORT_FOLDER', '/storage/sledy_data/exports')
+    LOG_FOLDER = os.environ.get('LOG_FOLDER', '/storage/sledy_data/logs')
     MAX_CONTENT_LENGTH = 10 * 1024 * 1024  # 单个请求最大10MB
     ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'pdf'}
     # 验证码相关
@@ -37,7 +39,7 @@ class Config:
     CAPTCHA_HEIGHT = 40
     # 邮件配置 (必须通过环境变量设置)
     MAIL_SERVER = os.environ.get('MAIL_SERVER', 'smtp.163.com')
-    MAIL_PORT = int(os.environ.get('MAIL_PORT', '25'))
+    MAIL_PORT = int(os.environ.get('MAIL_PORT', '465'))
     MAIL_USE_TLS = os.environ.get('MAIL_USE_TLS', 'False').lower() == 'true'
     MAIL_USE_SSL = os.environ.get('MAIL_USE_SSL', 'False').lower() == 'true'
     MAIL_USERNAME = os.environ.get('MAIL_USERNAME', '')

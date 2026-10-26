@@ -41,3 +41,6 @@ backup/
 
 # ===== macOS =====
 .DS_Store
+
+# ===== 运行时临时文件 =====
+gunicorn.pid
