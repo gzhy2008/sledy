@@ -13,7 +13,7 @@ from flask import (
 from flask_login import LoginManager, login_required, current_user
 from werkzeug.security import generate_password_hash
 
-from config import Config
+from config import Config, SYSTEM_NAME
 from models import db, User, SiteConfig
 from logger_config import setup_logging
 from flask_mail import Mail
@@ -93,7 +93,7 @@ def inject_theme():
     configs = {c.key: c.value for c in SiteConfig.query.all()}
     primary = configs.get('theme_primary', '#667eea')
     secondary = configs.get('theme_secondary', '#764ba2')
-    site_title = configs.get('site_title', '技能认定资料收集系统')
+    site_title = configs.get('site_title', SYSTEM_NAME)
     site_subtitle = configs.get('site_subtitle', '一站式技能认定报名、档案审核、批次管理平台')
     site_logo = configs.get('site_logo', '')
     return {
@@ -103,6 +103,7 @@ def inject_theme():
         'site_title': site_title,
         'site_subtitle': site_subtitle,
         'site_logo': site_logo,
+        'SYSTEM_NAME': SYSTEM_NAME,
     }
 
 

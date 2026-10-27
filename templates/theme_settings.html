@@ -10,7 +10,7 @@
             <h5>基本信息</h5>
             <div class="mb-3">
                 <label class="form-label">站点标题</label>
-                <input type="text" name="site_title" value="{{ site_title }}" class="form-control" placeholder="技能认定资料收集系统">
+                <input type="text" name="site_title" value="{{ site_title }}" class="form-control" placeholder="{{ SYSTEM_NAME }}">
             </div>
             <div class="mb-3">
                 <label class="form-label">站点副标题</label>
@@ -60,7 +60,7 @@
                     {% else %}
                     📋
                     {% endif %}
-                    <strong>{{ site_title or '技能认定资料收集系统' }}</strong>
+                    <strong>{{ site_title or SYSTEM_NAME }}</strong>
                 </div>
             </div>
         </div>
@@ -69,7 +69,7 @@
             <div class="card-body">
                 <div style="background: linear-gradient(135deg, {{ primary }}, {{ secondary }}); height: 120px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #fff;">
                     <div class="text-center">
-                        <strong>{{ site_title or '技能认定资料收集系统' }}</strong>
+                        <strong>{{ site_title or SYSTEM_NAME }}</strong>
                         <div class="small opacity-75">{{ site_subtitle or '一站式技能认定报名、档案审核、批次管理平台' }}</div>
                     </div>
                 </div>

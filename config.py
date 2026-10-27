@@ -5,6 +5,9 @@ from urllib.parse import quote_plus
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 SECRET_KEY_FILE = os.path.join(BASE_DIR, 'secret_key')
 
+# 系统名称：邮件标题/正文、网页标题等统一引用此常量，修改系统名只需改此处
+SYSTEM_NAME = '技能认定资料收集审核系统'
+
 def _get_secret_key():
     """获取 SECRET_KEY：环境变量 > 持久化文件 > 随机生成并持久化"""
     env_key = os.environ.get('SECRET_KEY')

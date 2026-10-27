@@ -16,6 +16,7 @@ from flask_login import current_user
 from flask_mail import Message
 from PIL import Image
 from models import db, Student, UserProfile, HeadTeacher, ClassGroup, Skill, ExamBatch
+from config import SYSTEM_NAME
 from services import ROLE_NAMES, mask_email
 
 
@@ -178,7 +179,7 @@ def send_verify_code(email):
     session['send_code_time'] = time.time()
     session['email_verify_target'] = email
     mail = current_app.extensions['mail']
-    msg = Message('技能认定资料收集审核系统 - 邮箱验证码', recipients=[email])
+    msg = Message(f'{SYSTEM_NAME} - 邮箱验证码', recipients=[email])
     msg.charset = 'utf-8'
     msg.body = f'您的验证码是：{code}，有效期5分钟，请勿泄露。'
     try:
@@ -212,7 +213,7 @@ def send_credentials_notification(operator, target_name, target_username, target
     try:
         now_str = __import__('datetime').datetime.now().strftime('%Y-%m-%d %H:%M')
         msg = Message(
-            f'技能认定资料收集审核系统 - 账户凭证留底（{action}{role_display}）',
+            f'{SYSTEM_NAME} - 账户凭证留底（{action}{role_display}）',
             recipients=[operator_email]
         )
         msg.charset = 'utf-8'
@@ -225,7 +226,7 @@ def send_credentials_notification(operator, target_name, target_username, target
             f"　　{'初始' if action == '创建' else '新'}密码：{target_password}\n\n"
             f"操作时间：{now_str}\n\n"
             f"请将此凭证告知对应用户，并提醒其尽快登录修改密码。\n\n"
-            f"—— 技能认定资料收集审核系统"
+            f"—— {SYSTEM_NAME}"
         )
         mail.send(msg)
         return True, '凭证邮件已发送，凭证也已暂存于当前页面。'
@@ -256,7 +257,7 @@ def revoke_student_registrations_and_notify(profile):
             user = profile.user
             if user.email and '@' in user.email:
                 mail = current_app.extensions['mail']
-                msg = Message('技能认定资料收集审核系统 - 档案重置通知', recipients=[user.email])
+                msg = Message(f'{SYSTEM_NAME} - 档案重置通知', recipients=[user.email])
                 msg.charset = 'utf-8'
                 batch_list = '、'.join(revoked_batches)
                 msg.body = (
@@ -283,7 +284,7 @@ def notify_student(user, title, body):
     try:
         msg = Message(title, recipients=[user.email])
         msg.charset = 'utf-8'
-        msg.body = body + '\n\n—— 技能认定资料收集审核系统'
+        msg.body = body + '\n\n—— {SYSTEM_NAME}'
         mail.send(msg)
         current_app.logger.info(f'通知邮件已发送: user={user.username}, to={user.email}, title={title}')
         return True
@@ -321,7 +322,7 @@ def notify_class_students(cls, batch, action='add'):
         return False, '邮件服务未配置'
     action_text = '新增为面向班级' if action == 'add' else '已移除'
     batch_info = batch.display_title if batch.display_title else batch.batch_name
-    subject = '技能认定资料收集审核系统 - 批次班级变更通知'
+    subject = f'{SYSTEM_NAME} - 批次班级变更通知'
     total_sent = 0
 
     # 1. 通知班主任
@@ -335,7 +336,7 @@ def notify_class_students(cls, batch, action='add'):
 批次「{batch_info}」已将您管理的班级「{cls.name}」{action_text}。
 请及时通知班级学生登录系统查看并完成相关操作。
 
-—— 技能认定资料收集审核系统'''
+—— {SYSTEM_NAME}'''
             msg = Message(subject, recipients=[teacher.user.email], body=body)
             mail.send(msg)
             total_sent += 1
@@ -358,7 +359,7 @@ def notify_class_students(cls, batch, action='add'):
 
 （你能收到此通知，是因为批次选择班级时你已在班级内部）
 
-—— 技能认定资料收集审核系统'''
+—— {SYSTEM_NAME}'''
                 msg = Message(subject, recipients=[user.email], body=body)
                 mail.send(msg)
                 sc += 1
