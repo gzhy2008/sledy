@@ -270,7 +270,7 @@ def handle_transfer(profile_id):
             f"请点击以下链接登录查看：\n"
             f"{dashboard_url}"
         )
-        notify_student(profile.user, '技能认定资料收集系统 - 转班申请通过', body)
+        notify_student(profile.user, '技能认定资料收集审核系统 - 转班申请通过', body)
     elif action == 'reject':
         body = (
             f"同学 {profile.name}，您好！\n\n"
@@ -278,7 +278,7 @@ def handle_transfer(profile_id):
             f"请点击以下链接登录查看：\n"
             f"{dashboard_url}"
         )
-        notify_student(profile.user, '技能认定资料收集系统 - 转班申请结果', body)
+        notify_student(profile.user, '技能认定资料收集审核系统 - 转班申请结果', body)
 
     return redirect(request.referrer or url_for('admin.admin_profiles'))
 #-------------------
@@ -522,7 +522,7 @@ def teacher_approve_profile(profile_id):
             f"请点击以下链接登录查看：\n"
             f"{dashboard_url}"
         )
-        notify_student(profile.user, '技能认定资料收集系统 - 档案审核通过', body)
+        notify_student(profile.user, '技能认定资料收集审核系统 - 档案审核通过', body)
     elif action == 'reject':
         body = (
             f"同学 {profile.name}，您好！\n\n"
@@ -531,7 +531,7 @@ def teacher_approve_profile(profile_id):
             f"请登录系统修改后重新提交：\n"
             f"{dashboard_url}"
         )
-        notify_student(profile.user, '技能认定资料收集系统 - 档案审核结果', body)
+        notify_student(profile.user, '技能认定资料收集审核系统 - 档案审核结果', body)
 
     flash(f'档案审核已{profile.status}', 'success')
     return redirect(url_for('teacher.teacher_profiles'))

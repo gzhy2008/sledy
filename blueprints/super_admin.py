@@ -255,7 +255,7 @@ def replace_global_admin():
         if email:
             try:
                 msg = Message(
-                    '技能认定资料收集系统 - 全局管理员变更通知',
+                    '技能认定资料收集审核系统 - 全局管理员变更通知',
                     recipients=[email]
                 )
                 msg.charset = 'utf-8'
@@ -267,7 +267,7 @@ def replace_global_admin():
 
 请及时登录系统并修改密码。
 
-—— 技能认定资料收集系统'''
+—— 技能认定资料收集审核系统'''
                 current_app.extensions['mail'].send(msg)
             except Exception as e:
                 current_app.logger.error(f'通知邮件发送失败：{e}')
@@ -620,7 +620,7 @@ def super_admin_update_email(user_id):
     # 发送邮件通知到新邮箱
     try:
         msg = Message(
-            '技能认定资料收集系统 - 邮箱变更通知',
+            '技能认定资料收集审核系统 - 邮箱变更通知',
             recipients=[new_email]
         )
         msg.charset = 'utf-8'
@@ -632,7 +632,7 @@ def super_admin_update_email(user_id):
 
     如果这不是您本人操作，请联系管理员。
 
-    —— 技能认定资料收集系统'''
+    —— 技能认定资料收集审核系统'''
         current_app.extensions['mail'].send(msg)
     except Exception as e:
         current_app.logger.error(f'通知邮件发送失败：{e}')
@@ -962,7 +962,7 @@ def super_admin_send_email_code():
     session['sa_email_verify_code_time'] = time.time()
     session['send_code_time'] = time.time()
     mail = current_app.extensions['mail']
-    msg = Message('技能认定资料收集系统 - 邮箱验证码', recipients=[email])
+    msg = Message('技能认定资料收集审核系统 - 邮箱验证码', recipients=[email])
     msg.charset = 'utf-8'
     msg.body = f'您的邮箱验证码是：{code}，有效期5分钟，请勿泄露。'
     try:
@@ -1000,8 +1000,8 @@ def super_admin_account():
                             f'\u7528\u6237\u540d: {current_user.username}\n'
                             f'\u4fee\u6539\u65f6\u95f4: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}\n\n'
                             '\u5982\u975e\u672c\u4eba\u64cd\u4f5c\uff0c\u8bf7\u7acb\u5373\u8054\u7cfb\u670d\u52a1\u5668\u7ba1\u7406\u5458\u91cd\u7f6e\u5bc6\u7801\u3002\n\n'
-                            '\u2014\u2014 \u6280\u80fd\u8ba4\u5b9a\u8d44\u6599\u6536\u96c6\u7cfb\u7edf')
-                    msg_obj = Message('\u6280\u80fd\u8ba4\u5b9a\u8d44\u6599\u6536\u96c6\u7cfb\u7edf - \u5bc6\u7801\u4fee\u6539\u901a\u77e5', recipients=[current_user.email], body=body)
+                            '\u2014\u2014 \u6280\u80fd\u8ba4\u5b9a\u8d44\u6599\u6536\u96c6\u5ba1\u6838\u7cfb\u7edf')
+                    msg_obj = Message('\u6280\u80fd\u8ba4\u5b9a\u8d44\u6599\u6536\u96c6\u5ba1\u6838\u7cfb\u7edf - \u5bc6\u7801\u4fee\u6539\u901a\u77e5', recipients=[current_user.email], body=body)
                     mail.send(msg_obj)
                     flash(f'\u5bc6\u7801\u5df2\u4fee\u6539\uff0c\u901a\u77e5\u5df2\u53d1\u5f80 {mask_email(current_user.email)}', 'success')
                 except Exception as e:

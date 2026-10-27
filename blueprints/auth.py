@@ -278,7 +278,7 @@ def request_login_verify_code():
 
     from flask import current_app
     mail = current_app.extensions['mail']
-    msg = Message('技能认定资料收集系统 - 登录验证码', recipients=[user.email])
+    msg = Message('技能认定资料收集审核系统 - 登录验证码', recipients=[user.email])
     msg.charset = 'utf-8'
     msg.body = f'您的登录验证码是：{code}，有效期5分钟，请勿泄露。'
     try:

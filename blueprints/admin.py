@@ -1017,7 +1017,7 @@ def _notify_batch_review_result(student, status, reason=''):
             f"{dashboard_url}"
         )
         notify_student(student.user,
-            f'技能认定资料收集系统 - 报名审核通过通知',
+            f'技能认定资料收集审核系统 - 报名审核通过通知',
             body)
     else:
         body = (
@@ -1031,7 +1031,7 @@ def _notify_batch_review_result(student, status, reason=''):
             f"{dashboard_url}"
         )
         notify_student(student.user,
-            f'技能认定资料收集系统 - 报名审核结果通知',
+            f'技能认定资料收集审核系统 - 报名审核结果通知',
             body)
 
 
@@ -1221,7 +1221,7 @@ def approve_profile(profile_id):
             f"请点击以下链接登录查看：\n"
             f"{dashboard_url}"
         )
-        notify_student(profile.user, '技能认定资料收集系统 - 档案审核通过', body)
+        notify_student(profile.user, '技能认定资料收集审核系统 - 档案审核通过', body)
     elif action == 'reject':
         body = (
             f"同学 {profile.name}，您好！\n\n"
@@ -1230,7 +1230,7 @@ def approve_profile(profile_id):
             f"请登录系统修改后重新提交：\n"
             f"{dashboard_url}"
         )
-        notify_student(profile.user, '技能认定资料收集系统 - 档案审核结果', body)
+        notify_student(profile.user, '技能认定资料收集审核系统 - 档案审核结果', body)
 
     flash(f'档案审核已{profile.status}', 'success')
     if current_user.role == 'headteacher':
@@ -1631,10 +1631,10 @@ def update_student_email(profile_id):
     db.session.commit()
 
     try:
-        msg = Message('技能认定资料收集系统 - 邮箱变更通知', recipients=[new_email])
+        msg = Message('技能认定资料收集审核系统 - 邮箱变更通知', recipients=[new_email])
         msg.charset = 'utf-8'
         msg.body = (
-            f"您的技能认定资料收集系统登录邮箱已由管理员 {current_user.username} 从 {old_email} 更换为 {new_email}。\n"
+            f"您的技能认定资料收集审核系统登录邮箱已由管理员 {current_user.username} 从 {old_email} 更换为 {new_email}。\n"
             f"从即刻起，您将使用此邮箱接收登录验证码。\n\n"
             f"⚠️ 如果这不是您本人主动要求更换，请立即联系您的班主任或管理员！\n\n"
             f"系统操作时间：{datetime.now().strftime('%Y-%m-%d %H:%M')}"
@@ -1735,8 +1735,8 @@ def send_export_code():
         return jsonify({'status':'error','msg':'未配置邮箱，无法发送验证码'})
     try:
         code = ''.join(random.choices(string.digits, k=6))
-        msg = Message('技能认定资料收集系统 - 导出验证码', recipients=[current_user.email],
-                      body=f'导出文件验证码: {code}\n有效期 5 分钟。\n\n—— 技能认定资料收集系统')
+        msg = Message('技能认定资料收集审核系统 - 导出验证码', recipients=[current_user.email],
+                      body=f'导出文件验证码: {code}\n有效期 5 分钟。\n\n—— 技能认定资料收集审核系统')
         current_app.extensions['mail'].send(msg)
         session['export_verify_code'] = code
         session['export_verify_code_time'] = time.time()

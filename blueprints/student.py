@@ -221,7 +221,7 @@ def request_change_email():
     session['change_email_code_time'] = time.time()
     session['change_email_new_email'] = new_email
     mail = current_app.extensions['mail']
-    msg = Message('技能认定资料收集系统 - 邮箱验证码', recipients=[new_email])
+    msg = Message('技能认定资料收集审核系统 - 邮箱验证码', recipients=[new_email])
     msg.charset = 'utf-8'
     msg.body = f'您的邮箱验证码是：{code}，有效期5分钟。'
     try:
@@ -371,7 +371,7 @@ def withdraw_application(student_id):
             f"如需重新报名，请登录系统操作：\n"
             f"{dashboard_url}"
         )
-        notify_student(registration.user, '技能认定资料收集系统 - 报名已退出', body)
+        notify_student(registration.user, '技能认定资料收集审核系统 - 报名已退出', body)
 
     flash('已退出该批次报名', 'success')
     return redirect(url_for('student.student_dashboard'))
